@@ -25,7 +25,3 @@ extension = []
 
 # Enable Bottlerocket settings extensions CLI proto1.
 proto1 = []
-
-[lib]
-# will be removed
-doctest = false
