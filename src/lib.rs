@@ -20,3 +20,6 @@ tool wishes to invoke a settings extension and parse the output.
 */
 #[cfg(feature = "extension")]
 pub mod cli;
+pub mod model;
+
+pub use model::{BottlerocketSetting, GenerateResult, SettingsModel};
