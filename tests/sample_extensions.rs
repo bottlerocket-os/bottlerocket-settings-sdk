@@ -1,7 +1,7 @@
 //! Rust integration tests don't load modules by default.
 //! This file is picked up by the integration tester and directs it to integration test submodules.
 use anyhow::{Context, Result};
-use bottlerocket_settings_sdk::model::erased::AsModel;
+use bottlerocket_settings_sdk::model::AsModel;
 use bottlerocket_settings_sdk::{GenerateResult, Migrator, SettingsExtension};
 pub use helpers::*;
 use log::LevelFilter;
