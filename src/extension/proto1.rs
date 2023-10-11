@@ -11,24 +11,25 @@ use crate::model::erased::AsTypeErasedModel;
 use crate::SettingsExtension;
 use snafu::{OptionExt, ResultExt};
 use std::fmt::Debug;
+use std::process::ExitCode;
 use tracing::instrument;
 
 /// Runs a proto1 command against the given settings extension.
 ///
 /// Results are printed to stdout/stderr, adhering to Bottlerocket settings extension CLI proto1.
 /// Once the extension has run, the program terminates.
-pub fn run_extension<P: Proto1>(extension: P, cmd: Proto1Command) -> ! {
+pub fn run_extension<P: Proto1>(extension: P, cmd: Proto1Command) -> ExitCode {
     match try_run_extension(extension, cmd) {
         Err(e) => {
             // TODO use machine-readable output on error.
             eprintln!("{}", e);
-            std::process::exit(1);
+            ExitCode::FAILURE
         }
         Ok(output) => {
             println!("{}", &output);
-            std::process::exit(0);
+            ExitCode::SUCCESS
         }
-    };
+    }
 }
 
 /// Runs a proto1 command against the given settings extension.

@@ -7,6 +7,7 @@ use clap::Parser;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::ffi::OsString;
+use std::process::ExitCode;
 use tracing::{debug, info};
 
 mod builder;
@@ -47,8 +48,12 @@ where
     /// Runs the extension, collecting CLI input from `std::env::args_os()` and deferring behavior
     /// to the provided models, migrator, and helpers.
     ///
-    /// Results are printed to stdout/stderr, and the program exits if an error is encountered.
-    pub fn run(self) -> ! {
+    /// Results are printed to stdout/stderr, and an ExitCode is returned which should be used for
+    /// the settings extension.
+    ///
+    /// Users of this method should not separately write to `stdout`, as this could break adherence
+    /// to the settings extension CLI protocol.
+    pub fn run(self) -> ExitCode {
         let args = cli::Cli::parse();
         info!(extension = ?self, protocol = ?args.protocol, "Starting settings extensions");
         debug!(?args, "CLI arguments");
