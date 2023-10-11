@@ -32,9 +32,9 @@ impl SettingsModel for MotdV1 {
         existing_partial: Option<Self::PartialKind>,
         // We do not depend on any settings
         _dependent_settings: Option<serde_json::Value>,
-    ) -> Result<bottlerocket_settings_sdk::GenerateResult<Self::PartialKind, Self>> {
+    ) -> Result<GenerateResult<Self::PartialKind, Self>> {
         // We generate a default motd if there is none.
-        Ok(bottlerocket_settings_sdk::GenerateResult::Complete(
+        Ok(GenerateResult::Complete(
             existing_partial.unwrap_or(MotdV1::default()),
         ))
     }

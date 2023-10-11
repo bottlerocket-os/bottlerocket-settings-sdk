@@ -2,7 +2,7 @@ use super::*;
 use bottlerocket_settings_sdk::migrate::LinearMigratorModel;
 use bottlerocket_settings_sdk::{BottlerocketSetting, LinearMigrator, SettingsExtension};
 
-// These modules implement three versions of the "motd" settings extension, as well as CLI tests
+// These modules implement two versions of the "motd" settings extension, as well as CLI tests
 // for each exposed extension method.
 mod v1; // models motd as a single string
 mod v2; // models motd as a list of strings which don't contain whitespace
