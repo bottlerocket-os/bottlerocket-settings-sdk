@@ -7,7 +7,7 @@ use crate::cli::proto1::{
     GenerateCommand, MigrateCommand, Proto1Command, SetCommand, ValidateCommand,
 };
 use crate::migrate::Migrator;
-use crate::model::erased::AsModel;
+use crate::model::erased::AsTypeErasedModel;
 use crate::SettingsExtension;
 use snafu::{OptionExt, ResultExt};
 use std::fmt::Debug;
@@ -81,7 +81,7 @@ pub trait Proto1: Debug {
 
 impl<Mi, Mo> Proto1 for SettingsExtension<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     type MigratorErrorKind = Mi::ErrorKind;

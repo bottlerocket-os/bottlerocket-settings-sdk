@@ -8,7 +8,7 @@ use tracing::{debug, instrument};
 
 /// A type-erased analogue to [`SettingsModel`].
 ///
-/// Since the `Model` type is one of the first SDK components that the CLI interacts with,
+/// Since the `TypeErasedModel` type is one of the first SDK components that the CLI interacts with,
 /// type-erasure is done via serialization/deserialization via [`serde_json::Value`] types passed in
 /// through the user interface.
 /// Downcasting to user-defined model types is performed via deserialization by the implementor,
@@ -17,7 +17,7 @@ use tracing::{debug, instrument};
 /// In cases where the values are being passed to a migrator, the values are deserialized and then
 /// type-erased once again with [`std::any::Any`], which is much more efficient than repeatedly
 /// erasing/downcasting via serialization.
-pub trait Model: Debug {
+pub trait TypeErasedModel: Debug {
     /// Returns the version of the model, e.g. "v1".
     fn get_version(&self) -> &'static str;
 
@@ -59,21 +59,21 @@ pub trait Model: Debug {
     ) -> Result<Box<dyn Any>, BottlerocketSettingError>;
 }
 
-/// A helper trait used to "upcast" supertraits over the `Model` trait.
+/// A helper trait used to "upcast" supertraits over the [`TypeErasedModel`] trait.
 ///
 /// This is required until Rust supports trait upcast coercion.
 /// `<https://github.com/rust-lang/rust/issues/65991>`
-pub trait AsModel {
-    fn as_model(&self) -> &dyn Model;
+pub trait AsTypeErasedModel {
+    fn as_model(&self) -> &dyn TypeErasedModel;
 }
 
-impl<T: Model> AsModel for T {
-    fn as_model(&self) -> &dyn Model {
+impl<T: TypeErasedModel> AsTypeErasedModel for T {
+    fn as_model(&self) -> &dyn TypeErasedModel {
         self
     }
 }
 
-impl<T: SettingsModel + 'static> Model for BottlerocketSetting<T> {
+impl<T: SettingsModel + 'static> TypeErasedModel for BottlerocketSetting<T> {
     fn get_version(&self) -> &'static str {
         T::get_version()
     }

@@ -25,7 +25,7 @@
 //!     ])
 //!     .build();
 //! ```
-use crate::model::erased::AsModel;
+use crate::model::erased::AsTypeErasedModel;
 use crate::{Migrator, SettingsExtension};
 use snafu::ensure;
 use std::collections::HashSet;
@@ -38,7 +38,7 @@ use tracing::{debug, instrument};
 #[derive(Debug, Default)]
 pub struct SettingsExtensionBuilder<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     name: &'static str,
@@ -48,7 +48,7 @@ where
 /// Builder for `SettingsExtension`.
 pub struct SettingsExtensionBuilderWithMigrator<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     name: &'static str,
@@ -58,7 +58,7 @@ where
 
 impl<Mi, Mo> SettingsExtensionBuilder<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     /// Returns a new `SettingsExtensionBuilder`.
@@ -77,7 +77,7 @@ where
 
 impl<Mi, Mo> SettingsExtensionBuilderWithMigrator<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     fn new(name: &'static str, migrator: Mi) -> Self {

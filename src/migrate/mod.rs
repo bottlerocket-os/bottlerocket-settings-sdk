@@ -4,7 +4,7 @@
 //!
 //! The [`Migrator`](self::Migrator) trait, is also provided, which allows settings extensions
 //! to customize how they are migrated between different versions.
-use crate::model::erased::AsModel;
+use crate::model::erased::AsTypeErasedModel;
 use crate::{GenerateResult, SettingsModel};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -25,7 +25,7 @@ pub trait Migrator: Debug {
     /// This is usually a trait object provided by a [`Migrator`] implementaton; however, the
     /// underlying implementation is almost always a boxed
     /// [`BottlerocketSetting`](crate::BottlerocketSetting).
-    type ModelKind: AsModel;
+    type ModelKind: AsTypeErasedModel;
 
     /// Validates that the given settings extension's models have a coherent linear migration chain.
     ///
@@ -55,7 +55,7 @@ pub trait ModelStore {
     /// The type representing stored models.
     ///
     /// This is usually a trait object provided by a [`Migrator`] implementaton.
-    type ModelKind: AsModel;
+    type ModelKind: AsTypeErasedModel;
 
     /// Retrieves the model for a given version.
     fn get_model(&self, version: &str) -> Option<&Self::ModelKind>;

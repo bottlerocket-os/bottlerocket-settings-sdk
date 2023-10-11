@@ -22,7 +22,7 @@
 //! We use the [`Any`] trait to perform type-erasure and downcasting to the associated model types.
 use super::interface::LinearlyMigrateable;
 use super::{error, LinearMigratorError, MigrationDirection};
-use crate::model::erased::{AsModel, Model};
+use crate::model::erased::{AsTypeErasedModel, TypeErasedModel};
 use crate::BottlerocketSetting;
 use snafu::{OptionExt, ResultExt};
 use std::any::Any;
@@ -32,7 +32,7 @@ pub trait TypeErasedLinearlyMigrateable {
     ///
     /// This is a bit of a hack to make it so that `TypeErasedLinearlyMigrateable` trait objects can
     /// blanket implement [`AsModel`].
-    fn as_model(&self) -> &dyn Model;
+    fn as_model(&self) -> &dyn TypeErasedModel;
 
     /// Returns the model version that this model migrates to in a given direction.
     fn migrates_to(&self, direction: MigrationDirection) -> Option<&'static str>;
@@ -50,7 +50,7 @@ pub trait TypeErasedLinearlyMigrateable {
 }
 
 impl<T: LinearlyMigrateable + 'static> TypeErasedLinearlyMigrateable for BottlerocketSetting<T> {
-    fn as_model(&self) -> &dyn Model {
+    fn as_model(&self) -> &dyn TypeErasedModel {
         self
     }
 
@@ -123,8 +123,8 @@ impl<T: LinearlyMigrateable + 'static> TypeErasedLinearlyMigrateable for Bottler
 // We need to implement `AsModel` to satisfy the `SettingsExtension` and `Migrator` interfaces.
 // Even if `TypeErasedLinearlyMigrateable` had `AsModel` as a supertrait, supertraits do not extend
 // to trait objects.
-impl AsModel for Box<dyn TypeErasedLinearlyMigrateable> {
-    fn as_model(&self) -> &dyn Model {
+impl AsTypeErasedModel for Box<dyn TypeErasedLinearlyMigrateable> {
+    fn as_model(&self) -> &dyn TypeErasedModel {
         TypeErasedLinearlyMigrateable::as_model(self.as_ref())
     }
 }

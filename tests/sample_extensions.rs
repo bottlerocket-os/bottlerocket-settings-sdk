@@ -1,7 +1,7 @@
 //! Rust integration tests don't load modules by default.
 //! This file is picked up by the integration tester and directs it to integration test submodules.
 use anyhow::{Context, Result};
-use bottlerocket_settings_sdk::model::AsModel;
+use bottlerocket_settings_sdk::model::AsTypeErasedModel;
 use bottlerocket_settings_sdk::{GenerateResult, Migrator, SettingsExtension};
 pub use helpers::*;
 use log::LevelFilter;
@@ -30,7 +30,7 @@ mod helpers {
     ) -> Result<serde_json::Value>
     where
         Mi: Migrator<ModelKind = Mo>,
-        Mo: AsModel,
+        Mo: AsTypeErasedModel,
     {
         extension
             .try_run_with_args(&[
@@ -57,7 +57,7 @@ mod helpers {
     ) -> Result<GenerateResult<P, C>>
     where
         Mi: Migrator<ModelKind = Mo>,
-        Mo: AsModel,
+        Mo: AsTypeErasedModel,
         P: DeserializeOwned,
         C: DeserializeOwned,
     {
@@ -100,7 +100,7 @@ mod helpers {
     ) -> Result<serde_json::Value>
     where
         Mi: Migrator<ModelKind = Mo>,
-        Mo: AsModel,
+        Mo: AsTypeErasedModel,
     {
         let mut args: Vec<String> = vec![
             "extension",
@@ -139,7 +139,7 @@ mod helpers {
     ) -> Result<serde_json::Value>
     where
         Mi: Migrator<ModelKind = Mo>,
-        Mo: AsModel,
+        Mo: AsTypeErasedModel,
     {
         let value = value.to_string();
         let args = vec![

@@ -2,7 +2,7 @@
 //! settings extensions that adhere to the settings extension CLI protocol.
 use crate::cli;
 use crate::migrate::{Migrator, ModelStore};
-use crate::model::erased::AsModel;
+use crate::model::erased::AsTypeErasedModel;
 use clap::Parser;
 use snafu::ResultExt;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ type Version = String;
 /// extension protocol.
 pub struct SettingsExtension<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     name: &'static str,
@@ -36,7 +36,7 @@ where
 
 impl<Mi, Mo> SettingsExtension<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     /// Returns a builder used to construct a `SettingsExtension`.
@@ -89,7 +89,7 @@ where
 
 impl<Mi, Mo> ModelStore for SettingsExtension<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     type ModelKind = Mo;
@@ -105,7 +105,7 @@ where
 
 impl<Mi, Mo> std::fmt::Debug for SettingsExtension<Mi, Mo>
 where
-    Mo: AsModel,
+    Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

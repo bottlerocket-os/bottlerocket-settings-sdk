@@ -55,7 +55,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 #[doc(hidden)]
 pub mod erased;
-pub use erased::{AsModel, Model};
+pub use erased::{AsTypeErasedModel, TypeErasedModel};
 pub use error::BottlerocketSettingError;
 
 /// Allows structs to act as a model for settings which are stored in the Bottlerocket API.

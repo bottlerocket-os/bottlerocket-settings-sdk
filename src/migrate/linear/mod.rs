@@ -264,7 +264,7 @@ mod error {
 
 #[cfg(test)]
 mod test {
-    use crate::model::erased::Model;
+    use crate::model::erased::TypeErasedModel;
     use maplit::hashmap;
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
@@ -327,7 +327,7 @@ mod test {
     }
 
     // We have to implement `Model` to make `ModelStore` happy
-    impl Model for FakeMigrateable {
+    impl TypeErasedModel for FakeMigrateable {
         fn get_version(&self) -> &'static str {
             self.version
         }
@@ -369,7 +369,7 @@ mod test {
 
     // We ave to implement `TypeErasedLinearlyMigrateable` to make `LinearMigrator` happy.
     impl TypeErasedLinearlyMigrateable for FakeMigrateable {
-        fn as_model(&self) -> &dyn crate::model::erased::Model {
+        fn as_model(&self) -> &dyn crate::model::erased::TypeErasedModel {
             self
         }
 
