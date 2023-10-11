@@ -1,54 +1,5 @@
 //! Provides the [`SettingsModel`] trait interface required to model new settings in the
 //! Bottlerocket API using the settings SDK.
-//!
-//! To get started, you can describe the shape ("model") of your data using any struct which
-//! implements [`Serialize`](serde::Serialize), [`Deserialize`](serde::Deserialize), and
-//! [`Debug`](std::fmt::Debug), and then implement [`SettingsModel`]:
-//!
-//! ```
-//! # use anyhow::Result;
-//! # use bottlerocket_settings_sdk::{SettingsModel, GenerateResult};
-//! # use serde::{Serialize, Deserialize};
-//! # use std::convert::Infallible;
-//!
-//! /// Suppose we wish to allow setting our name and favorite number in the API.
-//! #[derive(Debug, Serialize, Deserialize, Default)]
-//! struct MySettings {
-//!     name: String,
-//!     favorite_number: i64,
-//! }
-//!
-//! // Implementing `bottlerocket_settings_sdk::SettingsModel` allows the settings SDK to expose
-//! // these settings in the Bottlerocket API.
-//! impl SettingsModel for MySettings {
-//! #   type PartialKind = Self;
-//!     type ErrorKind = anyhow::Error;
-//!
-//!     fn get_version() -> &'static str {
-//!         "v1"
-//!     }
-//!
-//!     fn set(current_value: Option<Self>, target: Self) -> Result<Self> {
-//!         // ...
-//! #       Ok(target)
-//!     }
-//!
-//! #   fn generate(
-//! #       _: Option<Self::PartialKind>,
-//! #       _: Option<serde_json::Value>,
-//! #   ) -> Result<GenerateResult<Self::PartialKind, Self>> {
-//! #       Ok(GenerateResult::Complete(MySettings::default()))
-//! #   }
-//!
-//! #   fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<bool> {
-//! #       Ok(true)
-//! #   }
-//! }
-//!
-//! ```
-//!
-//! Once you have implemented the interface for the model, you must also select
-//! [which migrator](crate::migrate) to use, and implement any traits required for that migrator.
 use serde::Deserialize;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
@@ -58,7 +9,58 @@ pub mod erased;
 pub use erased::{AsTypeErasedModel, TypeErasedModel};
 pub use error::BottlerocketSettingError;
 
-/// Allows structs to act as a model for settings which are stored in the Bottlerocket API.
+/// This trait is required to model new settings in the Bottlerocket API using the settings SDK.
+///
+/// To get started, you can describe the shape ("model") of your data using any struct which
+/// implements [`Serialize`](serde::Serialize), [`Deserialize`](serde::Deserialize), and
+/// [`Debug`](std::fmt::Debug), and then implement [`SettingsModel`]:
+///
+/// ```
+/// # use anyhow::Result;
+/// # use bottlerocket_settings_sdk::{SettingsModel, GenerateResult};
+/// # use serde::{Serialize, Deserialize};
+/// # use std::convert::Infallible;
+///
+/// /// Suppose we wish to allow setting our name and favorite number in the API.
+/// #[derive(Debug, Serialize, Deserialize, Default)]
+/// struct MySettings {
+///     name: String,
+///     favorite_number: i64,
+/// }
+///
+/// // Implementing `bottlerocket_settings_sdk::SettingsModel` allows the settings SDK to expose
+/// // these settings in the Bottlerocket API.
+/// impl SettingsModel for MySettings {
+///     type PartialKind = Self;
+///     type ErrorKind = anyhow::Error;
+///
+///     fn get_version() -> &'static str {
+///         "v1"
+///     }
+///
+///     fn set(current_value: Option<Self>, target: Self) -> Result<Self> {
+///         // Perform any additional validations of the new value here...
+///         Ok(target)
+///     }
+///
+///     fn generate(
+///         _: Option<Self::PartialKind>,
+///         _: Option<serde_json::Value>,
+///     ) -> Result<GenerateResult<Self::PartialKind, Self>> {
+///         // Dynamic generation of the value occurs here...
+///         Ok(GenerateResult::Complete(MySettings::default()))
+///     }
+///
+///     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<bool> {
+///         // Cross-validation of new values can occur against other settings here...
+///         Ok(true)
+///     }
+/// }
+///
+/// ```
+///
+/// Once you have implemented the interface for the model, you must also select
+/// [which migrator](crate::migrate) to use, and implement any traits required for that migrator.
 pub trait SettingsModel: Sized + Serialize + DeserializeOwned + Debug {
     /// A type that represents a partially-constructed version of the implementor of this trait.
     ///
@@ -73,6 +75,10 @@ pub trait SettingsModel: Sized + Serialize + DeserializeOwned + Debug {
     fn get_version() -> &'static str;
 
     /// Determines whether this setting can be set to the `target` value, given its current value.
+    ///
+    /// The returned value is what is ultimately set in the settings datastore. While this leaves
+    /// room for the extension to modify the value that is stored, this should be done cautiously
+    /// so as not to confuse users.
     fn set(current_value: Option<Self>, target: Self) -> Result<Self, Self::ErrorKind>;
 
     /// Generates default values at system start.

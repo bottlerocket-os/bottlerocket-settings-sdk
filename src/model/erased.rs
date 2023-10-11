@@ -1,18 +1,30 @@
-//! Contains the type-erased traits and their implementations used within the SDK to implement a
-//! settings extension given a user-defined set of `SettingsModel`s.
+//! The Bottlerocket Settings SDK requires settings extension creators to implement
+//! [`SettingsModel`] on their model structs to define how their settings behave.
+//! Within the SDK itself, we need a way to store a list of these [`SettingsModel`] types in memory
+//! so that we can process requests against them.
+//!
+//! This module contains traits which erase the underlying [`SettingsModel`] types, allowing the
+//! SDK to refer to the [`SettingsModel`]s as a collection of trait objects.
 use super::{error, BottlerocketSetting, BottlerocketSettingError, GenerateResult, SettingsModel};
 use snafu::ResultExt;
 use std::any::Any;
 use std::fmt::Debug;
 use tracing::{debug, instrument};
 
-/// A type-erased analogue to [`SettingsModel`].
+/// A type-erased analogue to [`SettingsModel`], primarly intended to be used internally by the SDK.
 ///
-/// Since the `TypeErasedModel` type is one of the first SDK components that the CLI interacts with,
-/// type-erasure is done via serialization/deserialization via [`serde_json::Value`] types passed in
+/// This trait is currently designed to be implemented only by [`BottlerocketSetting`], which is
+/// an empty struct generic over [`SettingsModel`]. This is useful because it allows the SDK to have
+/// a collection of `Box<dyn TypeErasedModel>` which can use their underlying `SettingsModel`
+/// implementation to respond to function calls.
+///
+/// Methods on this trait take a reference to `&self`, but this is only done to satisfy the
+/// requirements to make this trait "object-safe".
+///
+/// Type-erasure is done via serialization/deserialization of [`serde_json::Value`] types passed in
 /// through the user interface.
 /// Downcasting to user-defined model types is performed via deserialization by the implementor,
-/// of this trait `BottlerocketSettings`.
+/// of this trait [`BottlerocketSetting`].
 ///
 /// In cases where the values are being passed to a migrator, the values are deserialized and then
 /// type-erased once again with [`std::any::Any`], which is much more efficient than repeatedly
@@ -22,6 +34,10 @@ pub trait TypeErasedModel: Debug {
     fn get_version(&self) -> &'static str;
 
     /// Determines whether this setting can be set to the `target` value, given its current value.
+    ///
+    /// The returned value is what is ultimately set in the settings datastore. While this leaves
+    /// room for the extension to modify the value that is stored, this should be done cautiously
+    /// so as not to confuse users.
     fn set(
         &self,
         current: Option<serde_json::Value>,
