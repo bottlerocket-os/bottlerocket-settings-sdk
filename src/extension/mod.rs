@@ -4,8 +4,8 @@ use crate::cli;
 use crate::migrate::{Migrator, ModelStore};
 use crate::model::erased::AsTypeErasedModel;
 use clap::Parser;
-use snafu::ResultExt;
-use std::collections::HashMap;
+use snafu::{ensure, ResultExt};
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::process::ExitCode;
 use tracing::{debug, info};
@@ -40,9 +40,47 @@ where
     Mo: AsTypeErasedModel,
     Mi: Migrator<ModelKind = Mo>,
 {
-    /// Returns a builder used to construct a `SettingsExtension`.
-    pub fn with_name(name: &'static str) -> SettingsExtensionBuilder<Mi, Mo> {
-        SettingsExtensionBuilder::new(name)
+    /// Creates a new [`SettingsExtension`].
+    ///
+    /// Returns an error if the given models have a version naming collision, or if any written
+    /// migrations are deemed invalid.
+    pub fn new(
+        name: &'static str,
+        models: Vec<Mo>,
+        migrator: Mi,
+    ) -> Result<Self, SettingsExtensionError<Mi::ErrorKind>> {
+        let models = Self::build_model_map(models)?;
+
+        Ok(Self {
+            name,
+            models,
+            migrator,
+        })
+    }
+
+    /// Converts a list of models into a map of Version => Model while checing for uniqueness.
+    fn build_model_map(
+        models: Vec<Mo>,
+    ) -> Result<HashMap<Version, Mo>, SettingsExtensionError<Mi::ErrorKind>> {
+        let mut unique_models: HashSet<&str> = HashSet::new();
+
+        debug!("Checking each model for unique versioning.");
+        models
+            .into_iter()
+            .map(|model| {
+                let version = model.as_model().get_version();
+
+                ensure!(
+                    !unique_models.contains(version),
+                    error::ModelVersionCollisionSnafu {
+                        version: version.to_string(),
+                    }
+                );
+                unique_models.insert(version);
+
+                Ok((version.to_string(), model))
+            })
+            .collect()
     }
 
     /// Runs the extension, collecting CLI input from `std::env::args_os()` and deferring behavior
@@ -161,6 +199,9 @@ pub mod error {
             setting_version: String,
             source: BottlerocketSettingError,
         },
+
+        #[snafu(display("Models have colliding version '{}'", version))]
+        ModelVersionCollision { version: String },
 
         #[snafu(display("Requested model version '{}' not found", setting_version))]
         NoSuchModel { setting_version: String },

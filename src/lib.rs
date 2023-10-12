@@ -30,7 +30,8 @@ pub mod model;
 pub use crate::extension::SettingsExtension;
 #[cfg(feature = "extension")]
 pub use migrate::{
-    LinearMigrator, LinearMigratorModel, LinearlyMigrateable, Migrator, NoMigration,
+    LinearMigrator, LinearMigratorExtensionBuilder, LinearMigratorModel, LinearlyMigrateable,
+    Migrator, NoMigration,
 };
 
 pub use model::{BottlerocketSetting, GenerateResult, SettingsModel};

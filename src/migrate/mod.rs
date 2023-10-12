@@ -12,7 +12,9 @@ use std::convert::Infallible;
 use std::fmt::Debug;
 
 pub mod linear;
-pub use linear::{LinearMigrator, LinearMigratorModel, LinearlyMigrateable};
+pub use linear::{
+    LinearMigrator, LinearMigratorExtensionBuilder, LinearMigratorModel, LinearlyMigrateable,
+};
 
 /// Implementors of the `Migrator` trait inform a [`SettingsExtension`](crate::SettingsExtension)
 /// how to migrate settings values between different versions.

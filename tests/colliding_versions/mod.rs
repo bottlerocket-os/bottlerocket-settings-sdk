@@ -1,7 +1,6 @@
-use super::*;
 use bottlerocket_settings_sdk::{
-    BottlerocketSetting, GenerateResult, LinearMigrator, LinearlyMigrateable, NoMigration,
-    SettingsModel,
+    BottlerocketSetting, GenerateResult, LinearMigratorExtensionBuilder, LinearlyMigrateable,
+    NoMigration, SettingsModel,
 };
 use serde::{Deserialize, Serialize};
 use snafu::Snafu;
@@ -12,14 +11,15 @@ fn test_no_colliding_model_versions() {
     // When an extension is built with those models,
     // The extension will fail to build.
 
-    assert!(SettingsExtension::with_name("colliding-versions")
-        .with_migrator(LinearMigrator)
-        .with_models(vec![
-            BottlerocketSetting::<ModelA>::model(),
-            BottlerocketSetting::<ModelB>::model(),
-        ])
-        .build()
-        .is_err());
+    assert!(
+        LinearMigratorExtensionBuilder::with_name("colliding-versions")
+            .with_models(vec![
+                BottlerocketSetting::<ModelA>::model(),
+                BottlerocketSetting::<ModelB>::model(),
+            ])
+            .build()
+            .is_err()
+    );
 }
 
 #[derive(Debug, Snafu)]

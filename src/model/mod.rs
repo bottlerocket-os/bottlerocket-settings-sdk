@@ -107,13 +107,10 @@ pub trait SettingsModel: Sized + Serialize + DeserializeOwned + Debug {
 ///
 /// ```
 /// # use bottlerocket_settings_sdk::example::empty::EmptySetting;
-/// # use bottlerocket_settings_sdk::{SettingsExtension, LinearMigrator, BottlerocketSetting};
+/// # use bottlerocket_settings_sdk::{LinearMigratorExtensionBuilder, LinearMigrator, BottlerocketSetting};
 /// # type MySettingV1 = EmptySetting;
 /// # type MySettingV2 = EmptySetting;
-/// let settings_extension = SettingsExtension::with_name("example")
-///     // Don't forget to select a migrator!
-///     // . with_migrator(...)
-/// #   .with_migrator(LinearMigrator)
+/// let settings_extension = LinearMigratorExtensionBuilder::with_name("example")
 ///     .with_models(vec![
 ///         BottlerocketSetting::<MySettingV1>::model(),
 ///         BottlerocketSetting::<MySettingV2>::model(),

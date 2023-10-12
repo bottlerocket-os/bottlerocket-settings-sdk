@@ -9,8 +9,10 @@ use tracing::{debug, instrument};
 use MigrationDirection::{Backward, Forward};
 
 mod erased;
+mod extensionbuilder;
 mod interface;
 pub use error::LinearMigratorError;
+pub use extensionbuilder::LinearMigratorExtensionBuilder;
 pub use interface::{LinearMigrator, LinearlyMigrateable};
 
 /// The concrete type that the linear migrator manages.
