@@ -37,4 +37,4 @@ pub use model::{BottlerocketSetting, GenerateResult, SettingsModel};
 
 #[doc(hidden)]
 #[cfg(feature = "extension")]
-pub mod doc_do_not_use;
+pub mod example;

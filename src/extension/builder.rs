@@ -13,7 +13,7 @@
 //! # Examples
 //!
 //! ```
-//! # use bottlerocket_settings_sdk::doc_do_not_use::empty::EmptySetting;
+//! # use bottlerocket_settings_sdk::example::empty::EmptySetting;
 //! # use bottlerocket_settings_sdk::{SettingsExtension, LinearMigrator, BottlerocketSetting};
 //! # type MySettingV1 = EmptySetting;
 //! # type MySettingV2 = EmptySetting;
