@@ -2,7 +2,7 @@
 /*!
 This crate provides a Rust SDK for building Bottlerocket Settings Extensions.
 
-TODO: docstring (https://github.com/bottlerocket-os/bottlerocket-settings-sdk/issues/4)
+TODO: docstring (<https://github.com/bottlerocket-os/bottlerocket-settings-sdk/issues/4>)
 
 # Crate Features
 
