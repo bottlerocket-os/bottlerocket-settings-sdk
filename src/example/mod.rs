@@ -4,7 +4,6 @@
 //! their backwards compatibility.
 #![doc(hidden)]
 pub mod empty;
-pub mod needs_migrator;
 
 /// Error type to make examples compile.
 #[derive(Debug)]
