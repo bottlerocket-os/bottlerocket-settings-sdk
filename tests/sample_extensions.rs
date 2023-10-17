@@ -130,8 +130,8 @@ mod helpers {
             })
     }
 
-    /// Wrapper around "extension.migrate" which uses the CLI.
-    pub fn migrate_cli<Mi, Mo>(
+    /// Wrapper around target migrations which uses the CLI.
+    pub fn target_migrate_cli<Mi, Mo>(
         extension: SettingsExtension<Mi, Mo>,
         value: serde_json::Value,
         from_version: &str,
@@ -152,6 +152,36 @@ mod helpers {
             from_version,
             "--target-version",
             target_version,
+        ];
+
+        extension
+            .try_run_with_args(args)
+            .context("Failed to run settings extension CLI")
+            .and_then(|s| {
+                serde_json::from_str(s.as_str()).context("Failed to parse CLI result as JSON")
+            })
+    }
+
+    /// Wrapper around flood migrations which uses the CLI.
+    pub fn flood_migrate_cli<Mi, Mo>(
+        extension: SettingsExtension<Mi, Mo>,
+        value: serde_json::Value,
+        from_version: &str,
+    ) -> Result<serde_json::Value>
+    where
+        Mi: Migrator<ModelKind = Mo>,
+        Mo: AsTypeErasedModel,
+    {
+        let value = value.to_string();
+        let args = vec![
+            "extension",
+            "proto1",
+            "migrate",
+            "--value",
+            &value,
+            "--from-version",
+            from_version,
+            "--flood",
         ];
 
         extension

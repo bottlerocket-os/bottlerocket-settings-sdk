@@ -84,8 +84,12 @@ pub struct MigrateCommand {
     pub from_version: String,
 
     /// The desired resulting version for the settings data
-    #[arg(long)]
-    pub target_version: String,
+    #[arg(long, group = "migration-type")]
+    pub target_version: Option<String>,
+
+    /// Triggers a batch migration to all known setting versions
+    #[arg(long, group = "migration-type")]
+    pub flood: bool,
 }
 
 #[derive(Args, Debug)]
