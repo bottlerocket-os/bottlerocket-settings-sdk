@@ -62,11 +62,11 @@ impl LinearlyMigrateable for ModelA {
 
     type BackwardMigrationTarget = NoMigration;
 
-    fn migrate_forward(self) -> Result<Self::ForwardMigrationTarget> {
+    fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 
-    fn migrate_backward(self) -> Result<Self::BackwardMigrationTarget> {
+    fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 }
@@ -100,11 +100,11 @@ impl LinearlyMigrateable for ModelB {
 
     type BackwardMigrationTarget = NoMigration;
 
-    fn migrate_forward(self) -> Result<Self::ForwardMigrationTarget> {
+    fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 
-    fn migrate_backward(self) -> Result<Self::BackwardMigrationTarget> {
+    fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 }

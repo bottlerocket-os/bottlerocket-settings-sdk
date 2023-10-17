@@ -41,12 +41,12 @@ pub trait TypeErasedLinearlyMigrateable {
     /// direction.
     fn migrate(
         &self,
-        current: Box<dyn Any>,
+        current: &dyn Any,
         direction: MigrationDirection,
     ) -> Result<Box<dyn Any>, LinearMigratorError>;
 
     /// Serializes a type-erased `BottlerocketSettings`.
-    fn serialize(&self, current: Box<dyn Any>) -> Result<serde_json::Value, LinearMigratorError>;
+    fn serialize(&self, current: &dyn Any) -> Result<serde_json::Value, LinearMigratorError>;
 }
 
 impl<T: LinearlyMigrateable + 'static> TypeErasedLinearlyMigrateable for BottlerocketSetting<T> {
@@ -63,13 +63,13 @@ impl<T: LinearlyMigrateable + 'static> TypeErasedLinearlyMigrateable for Bottler
 
     fn migrate(
         &self,
-        current: Box<dyn Any>,
+        current: &dyn Any,
         direction: MigrationDirection,
     ) -> Result<Box<dyn Any>, LinearMigratorError> {
-        let current: Box<T> =
+        let current: &T =
             current
-                .downcast()
-                .map_err(|_| error::LinearMigratorError::DowncastSetting {
+                .downcast_ref()
+                .ok_or_else(|| error::LinearMigratorError::DowncastSetting {
                     version: T::get_version(),
                 })?;
 
@@ -109,14 +109,14 @@ impl<T: LinearlyMigrateable + 'static> TypeErasedLinearlyMigrateable for Bottler
         }
     }
 
-    fn serialize(&self, current: Box<dyn Any>) -> Result<serde_json::Value, LinearMigratorError> {
-        let current: Box<T> =
+    fn serialize(&self, current: &dyn Any) -> Result<serde_json::Value, LinearMigratorError> {
+        let current: &T =
             current
-                .downcast()
-                .map_err(|_| error::LinearMigratorError::DowncastSetting {
+                .downcast_ref()
+                .ok_or_else(|| error::LinearMigratorError::DowncastSetting {
                     version: T::get_version(),
                 })?;
-        serde_json::to_value(&current).context(error::SerializeMigrationResultSnafu)
+        serde_json::to_value(current).context(error::SerializeMigrationResultSnafu)
     }
 }
 

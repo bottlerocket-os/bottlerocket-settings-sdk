@@ -50,6 +50,26 @@ pub trait Migrator: Debug {
         starting_version: &str,
         target_version: &str,
     ) -> Result<serde_json::Value, Self::ErrorKind>;
+
+    /// Migrates a given settings value to all other available versions.
+    ///
+    /// The results from the flood migration include the starting value and version.
+    /// Returns an error if one occurs during any migration.
+    fn perform_flood_migrations(
+        &self,
+        models: &dyn ModelStore<ModelKind = Self::ModelKind>,
+        starting_value: Box<dyn Any>,
+        starting_version: &str,
+    ) -> Result<Vec<MigrationResult>, Self::ErrorKind>;
+}
+
+/// An individual migration result from a batch migration.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct MigrationResult {
+    /// The version resulting from the migration.
+    pub version: &'static str,
+    /// The value resulting from the migration.
+    pub value: serde_json::Value,
 }
 
 /// A type that holds settings models, used to resolve version -> model lookups during migrations.
@@ -64,6 +84,14 @@ pub trait ModelStore {
 
     /// Iterates over all stored models.
     fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::ModelKind)> + '_>;
+
+    /// Returns the number of items stored in the [`ModelStore`].
+    fn len(&self) -> usize;
+
+    /// Returns whether or not their are any models in the [`ModelStore`].
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// A marker type used to indicate that no migration should be performed.
@@ -71,6 +99,11 @@ pub trait ModelStore {
 pub struct NoMigration;
 
 impl NoMigration {
+    /// Creates a new `NoMigration` instance.
+    pub fn new() -> Self {
+        NoMigration
+    }
+
     /// Marker function to call when no migration should be performed.
     ///
     /// These functions should be marked to return `NoMigration`.

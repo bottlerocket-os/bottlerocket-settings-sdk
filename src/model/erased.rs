@@ -68,7 +68,7 @@ pub trait TypeErasedModel: Debug {
 
     /// Parses a JSON value into the underlying model type, then erases its type via the `Any` trait.
     ///
-    /// This is useful for implementing efficient migrations --
+    /// This is useful for implementing efficient migrations.
     fn parse_erased(
         &self,
         value: serde_json::Value,
