@@ -12,6 +12,7 @@ use MigrationDirection::{Backward, Forward};
 mod erased;
 mod extensionbuilder;
 mod interface;
+mod validator;
 pub use error::LinearMigratorError;
 pub use extensionbuilder::LinearMigratorExtensionBuilder;
 pub use interface::{LinearMigrator, LinearlyMigrateable};
@@ -23,19 +24,13 @@ impl Migrator for LinearMigrator {
     type ModelKind = LinearMigratorModel;
     type ErrorKind = LinearMigratorError;
 
-    /// Asserts that a linear migration chain exists which includes all models.
+    /// Asserts that a single linear migration chain exists which includes all models and contains
+    /// no loops.
     fn validate_migrations(
         &self,
         models: &dyn ModelStore<ModelKind = Self::ModelKind>,
     ) -> Result<(), LinearMigratorError> {
-        let starting_point = models.iter().next();
-
-        if let Some((mut _version, mut _model)) = starting_point {
-            // Don't forget to detect loops
-            todo!("https://github.com/bottlerocket-os/bottlerocket-settings-sdk/issues/2")
-        } else {
-            Ok(())
-        }
+        validator::validate_migrations(models)
     }
 
     /// Migrates data from a starting version to a target version.
@@ -125,7 +120,7 @@ impl Migrator for LinearMigrator {
 
         // Closure which performs all migrations in a direction, pushing results into the result Vec
         let mut flood_migrate = |starting_value: Rc<Box<dyn Any>>, direction| {
-            self.migration_iter(models, starting_version, direction)
+            migration_iter(models, starting_version, direction)
                 .skip(1)
                 .try_fold(
                     (starting_value, starting_model),
@@ -198,6 +193,16 @@ pub enum MigrationDirection {
     Backward,
 }
 
+impl MigrationDirection {
+    /// Returns the opposite direction to the current.
+    fn opposite(self) -> Self {
+        match self {
+            Forward => Backward,
+            Backward => Forward,
+        }
+    }
+}
+
 impl std::fmt::Display for MigrationDirection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
@@ -222,7 +227,7 @@ impl LinearMigrator {
         let search_in_direction = |direction: MigrationDirection| {
             debug!(starting_version, %direction, "Searching for migration route");
 
-            self.migration_iter(all_models, starting_version, direction)
+            migration_iter(all_models, starting_version, direction)
                 .enumerate()
                 .find(|(_ndx, model)| model.as_model().get_version() == target_version)
                 .map(|(ndx, _)| {
@@ -249,19 +254,18 @@ impl LinearMigrator {
             .or_else(|| search_in_direction(Backward))
             .map(|(num_hops, direction)| std::iter::repeat(direction).take(num_hops))
     }
+}
 
-    /// Iterate through the extensions chain of model migrations, starting at a given version.
-    fn migration_iter<'a>(
-        &self,
-        models: &'a dyn ModelStore<ModelKind = LinearMigratorModel>,
-        starting_version: &str,
-        direction: MigrationDirection,
-    ) -> MigrationIter<'a> {
-        MigrationIter {
-            direction,
-            models,
-            current: models.get_model(starting_version).map(|i| i.as_ref()),
-        }
+/// Iterate through the extensions chain of model migrations, starting at a given version.
+fn migration_iter<'a>(
+    models: &'a dyn ModelStore<ModelKind = LinearMigratorModel>,
+    starting_version: &str,
+    direction: MigrationDirection,
+) -> MigrationIter<'a> {
+    MigrationIter {
+        direction,
+        models,
+        current: models.get_model(starting_version).map(|i| i.as_ref()),
     }
 }
 
@@ -284,16 +288,44 @@ impl LinearlyMigrateable for NoMigration {
 
 mod error {
     #![allow(missing_docs)]
-    use snafu::Snafu;
-
     use super::MigrationDirection;
+    use snafu::Snafu;
 
     /// Error type returned by the linear migrator.
     #[derive(Debug, Snafu)]
     #[snafu(visibility(pub))]
     pub enum LinearMigratorError {
+        #[snafu(display(
+            "Detected disjoint migration chains while validating migrations: versions '{}' are not \
+            reachable from versions '{}'",
+            unreachable_versions.join(", "),
+            visited_versions.join(", "),
+        ))]
+        DisjointMigrationChain {
+            unreachable_versions: Vec<String>,
+            visited_versions: Vec<String>,
+        },
+
         #[snafu(display("Failed to downcast migrated value as setting version '{}'", version))]
         DowncastSetting { version: &'static str },
+
+        #[snafu(display(
+            "Detected an irreversible migration chain: {} points {} to {}, which points {} to {}.",
+            lhs_version, direction, fulcrum, direction.opposite(),
+            rhs_version.unwrap_or("no migration.")
+        ))]
+        IrreversibleMigrationChain {
+            lhs_version: &'static str,
+            fulcrum: &'static str,
+            rhs_version: Option<&'static str>,
+            direction: MigrationDirection,
+        },
+
+        #[snafu(display(
+            "Detected a migration loop. Multiple models use version '{}' as a migration target.",
+            version
+        ))]
+        MigrationLoop { version: &'static str },
 
         #[snafu(display("No '{}' migration for setting version '{}'", direction, version))]
         NoDefinedMigration {
@@ -449,8 +481,7 @@ mod test {
     fn test_migration_iter() {
         let models = test_extension_builder().build().unwrap();
 
-        let versions = LinearMigrator
-            .migration_iter(&models, "v1", Forward)
+        let versions = migration_iter(&models, "v1", Forward)
             .map(|model| model.as_model().get_version())
             .collect::<Vec<_>>();
 

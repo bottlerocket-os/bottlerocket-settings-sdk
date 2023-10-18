@@ -51,11 +51,15 @@ where
     ) -> Result<Self, SettingsExtensionError<Mi::ErrorKind>> {
         let models = Self::build_model_map(models)?;
 
-        Ok(Self {
+        let extension = Self {
             name,
             models,
             migrator,
-        })
+        };
+
+        extension.validate_migrations()?;
+
+        Ok(extension)
     }
 
     /// Converts a list of models into a map of Version => Model while checing for uniqueness.
@@ -81,6 +85,13 @@ where
                 Ok((version.to_string(), model))
             })
             .collect()
+    }
+
+    /// Runs the migrator's validator against the extension's models.
+    fn validate_migrations(&self) -> Result<(), SettingsExtensionError<Mi::ErrorKind>> {
+        self.migrator
+            .validate_migrations(self)
+            .context(error::MigrationValidationSnafu)
     }
 
     /// Runs the extension, collecting CLI input from `std::env::args_os()` and deferring behavior
@@ -190,6 +201,12 @@ pub mod error {
 
         #[snafu(display("Migrate operation failed: {}", source))]
         Migrate {
+            #[snafu(source(from(MigratorError, Into::into)))]
+            source: Box<dyn std::error::Error + Send + Sync + 'static>,
+        },
+
+        #[snafu(display("Failed to validate model migrations: {}", source))]
+        MigrationValidation {
             #[snafu(source(from(MigratorError, Into::into)))]
             source: Box<dyn std::error::Error + Send + Sync + 'static>,
         },
