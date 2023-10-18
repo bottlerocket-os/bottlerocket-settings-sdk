@@ -22,7 +22,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup update stable
-      - run: cargo build
-      - run: cargo test
-      - run: cargo fmt -- --check
-      - run: cargo clippy -- -D warnings --no-deps
+      - run: cargo install cargo-deny
+      - run: make build
