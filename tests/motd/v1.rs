@@ -22,10 +22,10 @@ impl SettingsModel for MotdV1 {
     fn set(
         // We allow any transition from current value to target, so we don't need the current value
         _current_value: Option<Self>,
-        target: Self,
-    ) -> Result<Self> {
+        _target: Self,
+    ) -> Result<()> {
         // Allow anything that parses as MotdV1
-        Ok(target)
+        Ok(())
     }
 
     fn generate(
@@ -39,9 +39,9 @@ impl SettingsModel for MotdV1 {
         ))
     }
 
-    fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<bool> {
+    fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<()> {
         // No need to do any additional validation, any MotdV1 is acceptable
-        Ok(true)
+        Ok(())
     }
 }
 
@@ -72,12 +72,9 @@ fn test_motdv1_set_success() {
     // Then that input is successfully set.
     vec![json!("Hello!"), json!("")]
         .into_iter()
-        .for_each(|value| {
-            assert_eq!(
-                set_cli(motd_settings_extension(), "v1", value.clone()).unwrap(),
-                value
-            )
-        });
+        .for_each(
+            |value| assert!(set_cli(motd_settings_extension(), "v1", value.clone()).is_ok(),),
+        );
 }
 
 #[test]
@@ -105,10 +102,7 @@ fn test_motdv1_generate() {
 fn test_motdv1_validate() {
     // When validate is called on motdv1,
     // it is successful for any value that parses
-    assert_eq!(
-        validate_cli(motd_settings_extension(), "v1", json!("test"), None).unwrap(),
-        json!(true),
-    );
+    assert!(validate_cli(motd_settings_extension(), "v1", json!("test"), None).is_ok(),);
 }
 
 #[test]

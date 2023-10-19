@@ -20,14 +20,13 @@ use tracing::instrument;
 /// Once the extension has run, the program terminates.
 pub fn run_extension<P: Proto1>(extension: P, cmd: Proto1Command) -> ExitCode {
     match try_run_extension(extension, cmd) {
-        Err(e) => {
-            // TODO use machine-readable output on error.
-            eprintln!("{}", e);
-            ExitCode::FAILURE
-        }
         Ok(output) => {
             println!("{}", &output);
             ExitCode::SUCCESS
+        }
+        Err(e) => {
+            println!("{}", e);
+            ExitCode::FAILURE
         }
     }
 }
@@ -44,16 +43,18 @@ where
     P: Proto1<MigratorErrorKind = ME>,
     ME: std::error::Error + Send + Sync + 'static,
 {
+    let json_stringify =
+        |value| serde_json::to_string_pretty(&value).context(error::SerializeResultSnafu);
+
     match cmd {
-        Proto1Command::Set(s) => extension.set(s),
-        Proto1Command::Generate(g) => extension.generate(g),
-        Proto1Command::Migrate(m) => extension.migrate(m),
-        Proto1Command::Validate(v) => extension.validate(v),
+        Proto1Command::Set(s) => extension.set(s).map(|_| String::new()),
+        Proto1Command::Generate(g) => extension.generate(g).and_then(json_stringify),
+        Proto1Command::Migrate(m) => extension.migrate(m).and_then(json_stringify),
+        Proto1Command::Validate(v) => extension.validate(v).map(|_| String::new()),
         Proto1Command::Helper(_h) => {
             todo!("https://github.com/bottlerocket-os/bottlerocket-settings-sdk/issues/3")
         }
     }
-    .and_then(|value| serde_json::to_string_pretty(&value).context(error::SerializeResultSnafu))
 }
 
 /// A trait representing adherence to Bottlerocket settings extension CLI proto1.
@@ -62,10 +63,7 @@ where
 pub trait Proto1: Debug {
     type MigratorErrorKind: std::error::Error + Send + Sync + 'static;
 
-    fn set(
-        &self,
-        args: SetCommand,
-    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
+    fn set(&self, args: SetCommand) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>>;
     fn generate(
         &self,
         args: GenerateCommand,
@@ -77,7 +75,7 @@ pub trait Proto1: Debug {
     fn validate(
         &self,
         args: ValidateCommand,
-    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
+    ) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>>;
 }
 
 impl<Mi, Mo> Proto1 for SettingsExtension<Mi, Mo>
@@ -88,10 +86,7 @@ where
     type MigratorErrorKind = Mi::ErrorKind;
 
     #[instrument(err)]
-    fn set(
-        &self,
-        args: SetCommand,
-    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
+    fn set(&self, args: SetCommand) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>> {
         self.model(&args.setting_version)
             .context(error::NoSuchModelSnafu {
                 setting_version: args.setting_version,
@@ -156,7 +151,7 @@ where
     fn validate(
         &self,
         args: ValidateCommand,
-    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
+    ) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>> {
         self.model(&args.setting_version)
             .context(error::NoSuchModelSnafu {
                 setting_version: args.setting_version,
@@ -164,8 +159,5 @@ where
             .as_model()
             .validate(args.value, args.required_settings)
             .context(error::ValidateSnafu)
-            .and_then(|validation| {
-                serde_json::to_value(validation).context(error::SerializeResultSnafu)
-            })
     }
 }

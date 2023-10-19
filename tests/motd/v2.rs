@@ -19,10 +19,10 @@ impl SettingsModel for MotdV2 {
     fn set(
         // We allow any transition from current value to target, so we don't need the current value
         _current_value: Option<Self>,
-        target: Self,
-    ) -> anyhow::Result<Self> {
+        _target: Self,
+    ) -> anyhow::Result<()> {
         // Allow anything that parses as MotdV2
-        Ok(target)
+        Ok(())
     }
 
     fn generate(
@@ -36,16 +36,15 @@ impl SettingsModel for MotdV2 {
         ))
     }
 
-    fn validate(
-        value: Self,
-        _validated_settings: Option<serde_json::Value>,
-    ) -> anyhow::Result<bool> {
+    fn validate(value: Self, _validated_settings: Option<serde_json::Value>) -> anyhow::Result<()> {
         let Self(inner_strings) = value;
 
         // No whitespace allowed in any of the substrings
-        Ok(!inner_strings
+        anyhow::ensure!(!inner_strings
             .iter()
-            .any(|i| i.contains(char::is_whitespace)))
+            .any(|i| i.contains(char::is_whitespace)),);
+
+        Ok(())
     }
 }
 
@@ -80,12 +79,7 @@ fn test_motdv2_set_success() {
         json!([]),
     ]
     .into_iter()
-    .for_each(|value| {
-        assert_eq!(
-            set_cli(motd_settings_extension(), "v2", value.clone()).unwrap(),
-            value
-        )
-    });
+    .for_each(|value| assert!(set_cli(motd_settings_extension(), "v2", value.clone()).is_ok()));
 }
 
 #[test]

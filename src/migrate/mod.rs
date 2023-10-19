@@ -125,7 +125,7 @@ impl SettingsModel for NoMigration {
         )
     }
 
-    fn set(_current_value: Option<Self>, _target: Self) -> Result<Self, Self::ErrorKind> {
+    fn set(_current_value: Option<Self>, _target: Self) -> Result<(), Self::ErrorKind> {
         unimplemented!(
             "`NoMigration` used as a marker type. Its settings model should never be used."
         )
@@ -143,7 +143,7 @@ impl SettingsModel for NoMigration {
     fn validate(
         _value: Self,
         _validated_settings: Option<serde_json::Value>,
-    ) -> Result<bool, Self::ErrorKind> {
+    ) -> Result<(), Self::ErrorKind> {
         unimplemented!(
             "`NoMigration` used as a marker type. Its settings model should never be used."
         )

@@ -41,7 +41,7 @@ impl SettingsModel for ModelA {
         "v1"
     }
 
-    fn set(_: Option<Self>, _: Self) -> Result<Self> {
+    fn set(_: Option<Self>, _: Self) -> Result<()> {
         unimplemented!()
     }
 
@@ -52,7 +52,7 @@ impl SettingsModel for ModelA {
         unimplemented!()
     }
 
-    fn validate(_: Self, _: Option<serde_json::Value>) -> Result<bool> {
+    fn validate(_: Self, _: Option<serde_json::Value>) -> Result<()> {
         unimplemented!()
     }
 }
@@ -79,7 +79,7 @@ impl SettingsModel for ModelB {
         "v1"
     }
 
-    fn set(_: Option<Self>, _: Self) -> Result<Self> {
+    fn set(_: Option<Self>, _: Self) -> Result<()> {
         unimplemented!()
     }
 
@@ -90,7 +90,7 @@ impl SettingsModel for ModelB {
         unimplemented!()
     }
 
-    fn validate(_: Self, _: Option<serde_json::Value>) -> Result<bool> {
+    fn validate(_: Self, _: Option<serde_json::Value>) -> Result<()> {
         unimplemented!()
     }
 }
