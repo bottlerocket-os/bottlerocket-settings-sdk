@@ -194,4 +194,43 @@ mod helpers {
                 serde_json::from_str(s.as_str()).context("Failed to parse CLI result as JSON")
             })
     }
+
+    /// Wrapper around "extension.template_helper" which uses the CLI.
+    pub fn template_helper_cli<Mi, Mo>(
+        extension: SettingsExtension<Mi, Mo>,
+        version: &str,
+        helper_name: &str,
+        args: Vec<serde_json::Value>,
+    ) -> Result<serde_json::Value>
+    where
+        Mi: Migrator<ModelKind = Mo>,
+        Mo: AsTypeErasedModel,
+    {
+        let template_args: Vec<String> = args
+            .into_iter()
+            .map(|arg| vec!["--arg".to_string(), arg.to_string()])
+            .flatten()
+            .collect();
+
+        let args = [
+            "extension",
+            "proto1",
+            "helper",
+            "--setting-version",
+            version,
+            "--helper-name",
+            helper_name,
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .chain(template_args)
+        .collect::<Vec<_>>();
+
+        extension
+            .try_run_with_args(args)
+            .context("Failed to run settings extension CLI")
+            .and_then(|s| {
+                serde_json::from_str(s.as_str()).context("Failed to parse CLI result as JSON")
+            })
+    }
 }

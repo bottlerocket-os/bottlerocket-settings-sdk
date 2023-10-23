@@ -1,9 +1,14 @@
 use std::convert::Infallible;
 
 use super::*;
-use bottlerocket_settings_sdk::{GenerateResult, LinearlyMigrateable, NoMigration, SettingsModel};
+use bottlerocket_settings_sdk::{
+    provide_template_helpers, GenerateResult, HelperDef, LinearlyMigrateable, NoMigration,
+    SettingsModel,
+};
+use bottlerocket_template_helper::template_helper;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct MotdV1(pub Option<String>);
@@ -43,6 +48,12 @@ impl SettingsModel for MotdV1 {
         // No need to do any additional validation, any MotdV1 is acceptable
         Ok(())
     }
+
+    fn template_helpers() -> Result<HashMap<String, Box<dyn HelperDef>>> {
+        Ok(provide_template_helpers! {
+            "exclaim" => exclaim_helper,
+        })
+    }
 }
 
 impl LinearlyMigrateable for MotdV1 {
@@ -64,6 +75,11 @@ impl LinearlyMigrateable for MotdV1 {
     fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
+}
+
+#[template_helper(ident = exclaim_helper)]
+fn exclaim(i: String) -> Result<String> {
+    Ok(i + "!")
 }
 
 #[test]
@@ -108,4 +124,34 @@ fn test_motdv1_validate() {
 #[test]
 fn test_motdv1_failure() {
     assert!(validate_cli(motd_settings_extension(), "v1", json!([1, 2, 3]), None).is_err(),);
+}
+
+#[test]
+fn test_no_such_helper() {
+    assert!(template_helper_cli(motd_settings_extension(), "v1", "no_such_helper", vec![]).is_err())
+}
+
+#[test]
+fn test_run_exclaim_helper() {
+    assert_eq!(
+        template_helper_cli(
+            motd_settings_extension(),
+            "v1",
+            "exclaim",
+            vec![json!("Hello")]
+        )
+        .unwrap(),
+        json!("Hello!")
+    );
+}
+
+#[test]
+fn test_helper_too_many_args() {
+    assert!(template_helper_cli(
+        motd_settings_extension(),
+        "v1",
+        "exclaim",
+        vec![json!("too"), json!("many"), json!("arguments")]
+    )
+    .is_err());
 }

@@ -236,6 +236,9 @@ pub mod error {
         #[snafu(display("Set operation failed: {}", source))]
         Set { source: BottlerocketSettingError },
 
+        #[snafu(display("Template helper execution failed: {}", source))]
+        TemplateHelper { source: BottlerocketSettingError },
+
         #[snafu(display("Validate operation failed: {}", source))]
         Validate { source: BottlerocketSettingError },
 

@@ -29,7 +29,7 @@ pub mod model;
 
 #[cfg(feature = "extension")]
 pub use crate::extension::SettingsExtension;
-pub use helper::{HelperDef, HelperError};
+pub use helper::{template_helper, HelperDef, HelperError};
 #[cfg(feature = "extension")]
 pub use migrate::{
     LinearMigrator, LinearMigratorExtensionBuilder, LinearMigratorModel, LinearlyMigrateable,

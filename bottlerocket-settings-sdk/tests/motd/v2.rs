@@ -1,6 +1,12 @@
+use std::collections::HashMap;
+
 use super::*;
 use anyhow::Result;
-use bottlerocket_settings_sdk::{GenerateResult, LinearlyMigrateable, NoMigration, SettingsModel};
+use bottlerocket_settings_sdk::{
+    provide_template_helpers, GenerateResult, HelperDef, LinearlyMigrateable, NoMigration,
+    SettingsModel,
+};
+use bottlerocket_template_helper::template_helper;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -46,6 +52,13 @@ impl SettingsModel for MotdV2 {
 
         Ok(())
     }
+
+    fn template_helpers() -> Result<HashMap<String, Box<dyn HelperDef>>> {
+        Ok(provide_template_helpers! {
+            "exclaim" => exclaim_helper,
+            "question" => question_helper,
+        })
+    }
 }
 
 impl LinearlyMigrateable for MotdV2 {
@@ -68,6 +81,16 @@ impl LinearlyMigrateable for MotdV2 {
 
         Ok(MotdV1(v1_value))
     }
+}
+
+#[template_helper(ident = exclaim_helper)]
+fn exclaim(i: String) -> Result<String> {
+    Ok(i + "!!")
+}
+
+#[template_helper(ident = question_helper)]
+fn question(one: String, two: String) -> Result<String> {
+    Ok(format!("{}? {}??", one, two))
 }
 
 #[test]
@@ -101,5 +124,33 @@ fn test_motdv2_generate() {
     assert_eq!(
         generate_cli(motd_settings_extension(), "v2", None, None).unwrap(),
         GenerateResult::<MotdV2, MotdV2>::Complete(MotdV2(vec![]))
+    );
+}
+
+#[test]
+fn test_run_exclaim_helper() {
+    assert_eq!(
+        template_helper_cli(
+            motd_settings_extension(),
+            "v2",
+            "exclaim",
+            vec![json!("Hello")]
+        )
+        .unwrap(),
+        json!("Hello!!")
+    );
+}
+
+#[test]
+fn test_run_question_helper() {
+    assert_eq!(
+        template_helper_cli(
+            motd_settings_extension(),
+            "v2",
+            "question",
+            vec![json!("two args"), json!("really")]
+        )
+        .unwrap(),
+        json!("two args? really??")
     );
 }
