@@ -1,4 +1,5 @@
 [workspace]
 members = [
     "bottlerocket-settings-sdk",
+    "bottlerocket-template-helper",
 ]
