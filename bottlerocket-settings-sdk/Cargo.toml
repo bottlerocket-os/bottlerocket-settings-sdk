@@ -1,0 +1,28 @@
+[package]
+name = "bottlerocket-settings-sdk"
+version = "0.1.0"
+license = "Apache-2.0 OR MIT"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+snafu = "0.7"
+tracing = { version = "0.1", features = ["log"] }
+
+[dev-dependencies]
+anyhow = "1"
+ctor = "0.2"
+env_logger = "0.10"
+log = "0.4"
+maplit = "1"
+
+[features]
+default = ["extension", "proto1"]
+
+# If extension is disabled, only the models structures are avalable.
+extension = []
+
+# Enable Bottlerocket settings extensions CLI proto1.
+proto1 = []
