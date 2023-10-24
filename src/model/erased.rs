@@ -42,7 +42,7 @@ pub trait TypeErasedModel: Debug {
         &self,
         current: Option<serde_json::Value>,
         target: serde_json::Value,
-    ) -> Result<serde_json::Value, BottlerocketSettingError>;
+    ) -> Result<(), BottlerocketSettingError>;
 
     /// Generates default values at system start.
     ///
@@ -64,7 +64,7 @@ pub trait TypeErasedModel: Debug {
         &self,
         value: serde_json::Value,
         validated_settings: Option<serde_json::Value>,
-    ) -> Result<bool, BottlerocketSettingError>;
+    ) -> Result<(), BottlerocketSettingError>;
 
     /// Parses a JSON value into the underlying model type, then erases its type via the `Any` trait.
     ///
@@ -99,7 +99,7 @@ impl<T: SettingsModel + 'static> TypeErasedModel for BottlerocketSetting<T> {
         &self,
         current: Option<serde_json::Value>,
         target: serde_json::Value,
-    ) -> Result<serde_json::Value, BottlerocketSettingError> {
+    ) -> Result<(), BottlerocketSettingError> {
         debug!(
             current_value = current.as_ref().map(|v| v.to_string()),
             target_value = target.to_string(),
@@ -126,12 +126,6 @@ impl<T: SettingsModel + 'static> TypeErasedModel for BottlerocketSetting<T> {
             .map_err(Into::into)
             .context(error::SetSettingSnafu {
                 version: T::get_version(),
-            })
-            .and_then(|retval| {
-                serde_json::to_value(retval).context(error::SerializeResultSnafu {
-                    version: T::get_version(),
-                    operation: "set",
-                })
             })
     }
 
@@ -176,7 +170,7 @@ impl<T: SettingsModel + 'static> TypeErasedModel for BottlerocketSetting<T> {
         &self,
         value: serde_json::Value,
         validated_settings: Option<serde_json::Value>,
-    ) -> Result<bool, BottlerocketSettingError> {
+    ) -> Result<(), BottlerocketSettingError> {
         debug!(
             %value,
             validated_settings = validated_settings.as_ref().map(|v| v.to_string()),

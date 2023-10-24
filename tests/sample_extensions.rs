@@ -28,7 +28,7 @@ mod helpers {
         extension: SettingsExtension<Mi, Mo>,
         version: &str,
         value: serde_json::Value,
-    ) -> Result<serde_json::Value>
+    ) -> Result<()>
     where
         Mi: Migrator<ModelKind = Mo>,
         Mo: AsTypeErasedModel,
@@ -44,8 +44,9 @@ mod helpers {
                 value.to_string().as_str(),
             ])
             .context("Failed to run settings extension CLI")
-            .and_then(|s| {
-                serde_json::from_str(s.as_str()).context("Failed to parse CLI result as JSON")
+            .map(|s| {
+                assert!(s.is_empty());
+                ()
             })
     }
 
@@ -98,7 +99,7 @@ mod helpers {
         version: &str,
         value: serde_json::Value,
         required_settings: Option<serde_json::Value>,
-    ) -> Result<serde_json::Value>
+    ) -> Result<()>
     where
         Mi: Migrator<ModelKind = Mo>,
         Mo: AsTypeErasedModel,
@@ -126,8 +127,9 @@ mod helpers {
         extension
             .try_run_with_args(args)
             .context("Failed to run settings extension CLI")
-            .and_then(|s| {
-                serde_json::from_str(s.as_str()).context("Failed to parse CLI result as JSON")
+            .map(|s| {
+                assert!(s.is_empty());
+                ()
             })
     }
 

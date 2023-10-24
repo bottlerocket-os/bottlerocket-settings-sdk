@@ -47,8 +47,8 @@ pub struct LinearMigrator;
 /// #         "v1"
 /// #     }
 /// #
-/// #     fn set(_current_value: Option<Self>, target: Self) -> Result<Self> {
-/// #         Ok(target)
+/// #     fn set(_current_value: Option<Self>, target: Self) -> Result<()> {
+/// #         Ok(())
 /// #     }
 /// #
 /// #     fn generate(
@@ -58,8 +58,8 @@ pub struct LinearMigrator;
 /// #         Ok(GenerateResult::Complete(Self::default()))
 /// #     }
 /// #
-/// #     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<bool> {
-/// #         Ok(true)
+/// #     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<()> {
+/// #         Ok(())
 /// #     }
 /// # }
 /// #
@@ -71,8 +71,8 @@ pub struct LinearMigrator;
 /// #         "v2"
 /// #     }
 /// #
-/// #     fn set(_current_value: Option<Self>, target: Self) -> Result<Self> {
-/// #         Ok(target)
+/// #     fn set(_current_value: Option<Self>, target: Self) -> Result<()> {
+/// #         Ok(())
 /// #     }
 /// #
 /// #     fn generate(
@@ -82,8 +82,8 @@ pub struct LinearMigrator;
 /// #         Ok(GenerateResult::Complete(Self::default()))
 /// #     }
 /// #
-/// #     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<bool> {
-/// #         Ok(true)
+/// #     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<()> {
+/// #         Ok(())
 /// #     }
 /// # }
 /// impl LinearlyMigrateable for ScoreV1 {

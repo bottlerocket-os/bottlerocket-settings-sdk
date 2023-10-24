@@ -18,7 +18,7 @@ macro_rules! define_model {
                 $version
             }
 
-            fn set(_: Option<Self>, _: Self) -> Result<Self> {
+            fn set(_: Option<Self>, _: Self) -> Result<()> {
                 unimplemented!()
             }
 
@@ -29,7 +29,7 @@ macro_rules! define_model {
                 unimplemented!()
             }
 
-            fn validate(_: Self, _: Option<serde_json::Value>) -> Result<bool> {
+            fn validate(_: Self, _: Option<serde_json::Value>) -> Result<()> {
                 unimplemented!()
             }
         }

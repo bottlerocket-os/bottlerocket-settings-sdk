@@ -400,8 +400,8 @@ mod test {
                     // We allow any transition from current value to target, so we don't need the current value
                     _current_value: Option<Self>,
                     _target: Self,
-                ) -> Result<Self, Infallible> {
-                    Ok(Self::new())
+                ) -> Result<(), Infallible> {
+                    Ok(())
                 }
 
                 fn generate(
@@ -415,8 +415,8 @@ mod test {
                 fn validate(
                     _value: Self,
                     _validated_settings: Option<serde_json::Value>,
-                ) -> Result<bool, Infallible> {
-                    Ok(true)
+                ) -> Result<(), Infallible> {
+                    Ok(())
                 }
             }
 

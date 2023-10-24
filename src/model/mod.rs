@@ -38,9 +38,9 @@ pub use error::BottlerocketSettingError;
 ///         "v1"
 ///     }
 ///
-///     fn set(current_value: Option<Self>, target: Self) -> Result<Self> {
+///     fn set(current_value: Option<Self>, target: Self) -> Result<()> {
 ///         // Perform any additional validations of the new value here...
-///         Ok(target)
+///         Ok(())
 ///     }
 ///
 ///     fn generate(
@@ -51,9 +51,9 @@ pub use error::BottlerocketSettingError;
 ///         Ok(GenerateResult::Complete(MySettings::default()))
 ///     }
 ///
-///     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<bool> {
+///     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<()> {
 ///         // Cross-validation of new values can occur against other settings here...
-///         Ok(true)
+///         Ok(())
 ///     }
 /// }
 ///
@@ -76,10 +76,8 @@ pub trait SettingsModel: Sized + Serialize + DeserializeOwned + Debug {
 
     /// Determines whether this setting can be set to the `target` value, given its current value.
     ///
-    /// The returned value is what is ultimately set in the settings datastore. While this leaves
-    /// room for the extension to modify the value that is stored, this should be done cautiously
-    /// so as not to confuse users.
-    fn set(current_value: Option<Self>, target: Self) -> Result<Self, Self::ErrorKind>;
+    /// Returns an error if the value is rejected.
+    fn set(current_value: Option<Self>, target: Self) -> Result<(), Self::ErrorKind>;
 
     /// Generates default values at system start.
     ///
@@ -99,7 +97,7 @@ pub trait SettingsModel: Sized + Serialize + DeserializeOwned + Debug {
     fn validate(
         _value: Self,
         _validated_settings: Option<serde_json::Value>,
-    ) -> Result<bool, Self::ErrorKind>;
+    ) -> Result<(), Self::ErrorKind>;
 }
 
 /// This struct wraps [`SettingsModel`]s in a referencable object which is passed to the

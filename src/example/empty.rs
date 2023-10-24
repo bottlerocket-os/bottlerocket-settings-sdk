@@ -15,8 +15,8 @@ impl SettingsModel for EmptySetting {
         "v1"
     }
 
-    fn set(_current_value: Option<Self>, target: Self) -> Result<Self> {
-        Ok(target)
+    fn set(_current_value: Option<Self>, _target: Self) -> Result<()> {
+        Ok(())
     }
 
     fn generate(
@@ -26,8 +26,8 @@ impl SettingsModel for EmptySetting {
         Ok(GenerateResult::Complete(Self))
     }
 
-    fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<bool> {
-        Ok(true)
+    fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<()> {
+        Ok(())
     }
 }
 
