@@ -144,6 +144,10 @@ where
     fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::ModelKind)> + '_> {
         Box::new(self.iter_models())
     }
+
+    fn len(&self) -> usize {
+        self.models.len()
+    }
 }
 
 impl<Mi, Mo> std::fmt::Debug for SettingsExtension<Mi, Mo>

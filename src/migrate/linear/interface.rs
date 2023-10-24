@@ -90,13 +90,13 @@ pub struct LinearMigrator;
 ///     type ForwardMigrationTarget = ScoreV2;
 ///     type BackwardMigrationTarget = NoMigration;
 ///
-///     fn migrate_forward(self) -> Result<ScoreV2> {
+///     fn migrate_forward(&self) -> Result<ScoreV2> {
 ///         Ok(ScoreV2 {
-///             all_scores: self.scores,
+///             all_scores: self.scores.clone(),
 ///         })
 ///     }
 ///
-///     fn migrate_backward(self) -> Result<NoMigration> {
+///     fn migrate_backward(&self) -> Result<NoMigration> {
 ///         NoMigration::no_defined_migration()
 ///     }
 /// }
@@ -105,13 +105,13 @@ pub struct LinearMigrator;
 ///     type ForwardMigrationTarget = NoMigration;
 ///     type BackwardMigrationTarget = ScoreV1;
 ///
-///     fn migrate_forward(self) -> Result<NoMigration> {
+///     fn migrate_forward(&self) -> Result<NoMigration> {
 ///         NoMigration::no_defined_migration()
 ///     }
 ///
-///     fn migrate_backward(self) -> Result<ScoreV1> {
+///     fn migrate_backward(&self) -> Result<ScoreV1> {
 ///         Ok(ScoreV1 {
-///             scores: self.all_scores,
+///             scores: self.all_scores.clone(),
 ///         })
 ///     }
 /// }
@@ -141,7 +141,7 @@ pub trait LinearlyMigrateable: SettingsModel {
     }
 
     /// Migrates this settings value forward.
-    fn migrate_forward(self) -> Result<Self::ForwardMigrationTarget, Self::ErrorKind>;
+    fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget, Self::ErrorKind>;
 
     /// Returns a string representing the version that this model migrates backward to.
     ///
@@ -155,5 +155,5 @@ pub trait LinearlyMigrateable: SettingsModel {
     }
 
     /// Migrates this settings value backward.
-    fn migrate_backward(self) -> Result<Self::BackwardMigrationTarget, Self::ErrorKind>;
+    fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget, Self::ErrorKind>;
 }

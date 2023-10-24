@@ -137,14 +137,19 @@ where
                     setting_version: args.from_version.clone(),
                 })?;
 
-        self.migrator
-            .perform_migration(
-                self,
-                starting_value,
-                &args.from_version,
-                &args.target_version,
-            )
-            .context(error::MigrateSnafu)
+        match (args.target_version, args.flood) {
+            (Some(target_version), _) => self
+                .migrator
+                .perform_migration(self, starting_value, &args.from_version, &target_version)
+                .context(error::MigrateSnafu),
+
+            // target_version is None, flood *must* be true.
+            (None, _flood) => self
+                .migrator
+                .perform_flood_migrations(self, starting_value, &args.from_version)
+                .context(error::MigrateSnafu)
+                .and_then(|value| serde_json::to_value(value).context(error::SerializeResultSnafu)),
+        }
     }
 
     #[instrument(err)]

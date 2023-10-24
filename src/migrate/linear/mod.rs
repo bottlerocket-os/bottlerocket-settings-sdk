@@ -1,10 +1,11 @@
 //! Provides the [`LinearlyMigrateable`] trait that is needed to use the [`LinearMigrator`] with a
 //! [`SettingsModel`](crate::model::SettingsModel).
-use super::{Migrator, ModelStore, NoMigration};
+use super::{MigrationResult, Migrator, ModelStore, NoMigration};
 use erased::TypeErasedLinearlyMigrateable;
 use snafu::OptionExt;
 use std::any::Any;
 use std::fmt::Debug;
+use std::rc::Rc;
 use tracing::{debug, instrument};
 use MigrationDirection::{Backward, Forward};
 
@@ -39,8 +40,8 @@ impl Migrator for LinearMigrator {
 
     /// Migrates data from a starting version to a target version.
     ///
-    /// The `LinearMigrator` checks that a migration chain exists between the two given versions, then iteratively
-    /// migrates the data through that chain until it is the desired version.
+    /// The `LinearMigrator` checks that a migration chain exists between the two given versions,
+    /// then iteratively migrates the data through that chain until it is the desired version.
     #[instrument(skip(self, models), err)]
     fn perform_migration(
         &self,
@@ -85,16 +86,84 @@ impl Migrator for LinearMigrator {
                         "Failed to find migration which was previously found during route \
                         selection.",
                     );
-                    let next_value = curr_model.migrate(curr_value, next_direction)?;
+                    let next_value = curr_model.migrate(curr_value.as_ref(), next_direction)?;
 
                     Ok((next_value, next_model))
                 },
             )
-            .and_then(|(final_value, final_model)| final_model.serialize(final_value));
+            .and_then(|(final_value, final_model)| final_model.serialize(final_value.as_ref()));
 
         debug!(starting_version, target_version, "Migration complete.");
 
         result
+    }
+
+    /// Migrates a given settings value to all other available versions.
+    ///
+    /// The results from the flood migration include the starting value and version.
+    /// Returns an error if one occurs during any migration.
+    fn perform_flood_migrations(
+        &self,
+        models: &dyn ModelStore<ModelKind = Self::ModelKind>,
+        starting_value: Box<dyn Any>,
+        starting_version: &str,
+    ) -> Result<Vec<super::MigrationResult>, Self::ErrorKind> {
+        debug!(starting_version, "Starting migrations.");
+
+        let starting_model = models
+            .get_model(starting_version)
+            .context(error::NoSuchModelSnafu {
+                version: starting_version.to_string(),
+            })?
+            .as_ref();
+
+        let mut results = Vec::with_capacity(models.len());
+        results.push(MigrationResult {
+            version: starting_model.as_model().get_version(),
+            value: starting_model.serialize(starting_value.as_ref())?,
+        });
+
+        // Closure which performs all migrations in a direction, pushing results into the result Vec
+        let mut flood_migrate = |starting_value: Rc<Box<dyn Any>>, direction| {
+            self.migration_iter(models, starting_version, direction)
+                .skip(1)
+                .try_fold(
+                    (starting_value, starting_model),
+                    |(curr_value, curr_model), next_model| {
+                        let current_version = curr_model.as_model().get_version();
+                        let next_version = next_model.as_model().get_version();
+                        debug!(
+                            current_version,
+                            next_version, "Performing flood submigration."
+                        );
+
+                        // Explicitly dereference `Any` pointers to ensure we're downcasting the
+                        // right pointer.
+                        let unrc_curr_value: &Box<dyn Any> = curr_value.as_ref();
+                        let curr_value: &dyn Any = unrc_curr_value.as_ref();
+                        let next_value = curr_model.migrate(curr_value, direction)?;
+
+                        results.push(MigrationResult {
+                            version: next_version,
+                            value: next_model.serialize(next_value.as_ref())?,
+                        });
+
+                        Ok((Rc::new(next_value), next_model))
+                    },
+                )?;
+            Ok(())
+        };
+
+        let starting_value = Rc::new(starting_value);
+
+        flood_migrate(Rc::clone(&starting_value), Forward)
+            .and_then(|_| flood_migrate(starting_value, Backward))?;
+
+        debug!(starting_version, "Flood migration complete.");
+
+        results.sort_by_key(|result| result.version);
+
+        Ok(results)
     }
 }
 
@@ -200,13 +269,13 @@ impl LinearlyMigrateable for NoMigration {
     type ForwardMigrationTarget = NoMigration;
     type BackwardMigrationTarget = NoMigration;
 
-    fn migrate_forward(self) -> Result<Self::ForwardMigrationTarget, Self::ErrorKind> {
+    fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget, Self::ErrorKind> {
         unimplemented!(
             "`NoMigration` used as a marker type. Its settings model should never be used."
         )
     }
 
-    fn migrate_backward(self) -> Result<Self::ForwardMigrationTarget, Self::ErrorKind> {
+    fn migrate_backward(&self) -> Result<Self::ForwardMigrationTarget, Self::ErrorKind> {
         unimplemented!(
             "`NoMigration` used as a marker type. Its settings model should never be used."
         )
@@ -266,147 +335,95 @@ mod error {
 
 #[cfg(test)]
 mod test {
-    use crate::model::erased::TypeErasedModel;
-    use maplit::hashmap;
+    use crate::BottlerocketSetting;
     use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
+    use std::convert::Infallible;
 
     use super::*;
 
-    // We have to implement a fair few traits to test the migrator.
-    /// `FakeModelStore` allows querying for Models of our type `FakeMigrateable`.
-    struct FakeModelStore(HashMap<String, Box<dyn TypeErasedLinearlyMigrateable>>);
-
-    impl ModelStore for FakeModelStore {
-        type ModelKind = Box<dyn TypeErasedLinearlyMigrateable>;
-
-        fn get_model(&self, version: &str) -> Option<&Self::ModelKind> {
-            let Self(inner) = &self;
-            inner.get(version)
-        }
-
-        fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::ModelKind)> + '_> {
-            todo!()
-        }
-    }
-
-    impl<S: AsRef<str>> From<HashMap<S, FakeMigrateable>> for FakeModelStore {
-        fn from(value: HashMap<S, FakeMigrateable>) -> Self {
-            Self(
-                value
-                    .into_iter()
-                    .map(|(version, model)| {
-                        (
-                            version.as_ref().to_string(),
-                            Box::new(model) as Box<dyn TypeErasedLinearlyMigrateable>,
-                        )
-                    })
-                    .collect(),
-            )
-        }
-    }
-
-    /// `FakeMigrateable` allows constructing arbitrary objects that we can migrate between.
-    #[derive(Debug, Serialize, Deserialize)]
-    struct FakeMigrateable {
-        version: &'static str,
-        backward: Option<&'static str>,
-        forward: Option<&'static str>,
-    }
-
-    impl FakeMigrateable {
-        fn new(
-            version: &'static str,
-            backward: Option<&'static str>,
-            forward: Option<&'static str>,
-        ) -> Self {
-            Self {
-                version,
-                backward,
-                forward,
+    macro_rules! basic_migrateable {
+        ($name:ident, $repr:expr, $backward:ident, $forward:ident) => {
+            #[derive(Debug, Serialize, Deserialize)]
+            struct $name {
+                ident: String,
             }
-        }
-    }
 
-    // We have to implement `Model` to make `ModelStore` happy
-    impl TypeErasedModel for FakeMigrateable {
-        fn get_version(&self) -> &'static str {
-            self.version
-        }
-
-        fn set(
-            &self,
-            _current: Option<serde_json::Value>,
-            _target: serde_json::Value,
-        ) -> Result<serde_json::Value, crate::model::BottlerocketSettingError> {
-            unimplemented!()
-        }
-
-        fn generate(
-            &self,
-            _existing_partial: Option<serde_json::Value>,
-            _dependent_settings: Option<serde_json::Value>,
-        ) -> Result<
-            crate::GenerateResult<serde_json::Value, serde_json::Value>,
-            crate::model::BottlerocketSettingError,
-        > {
-            unimplemented!()
-        }
-
-        fn validate(
-            &self,
-            _value: serde_json::Value,
-            _validated_settings: Option<serde_json::Value>,
-        ) -> Result<bool, crate::model::BottlerocketSettingError> {
-            unimplemented!()
-        }
-
-        fn parse_erased(
-            &self,
-            _value: serde_json::Value,
-        ) -> Result<Box<dyn Any>, crate::model::BottlerocketSettingError> {
-            unimplemented!()
-        }
-    }
-
-    // We ave to implement `TypeErasedLinearlyMigrateable` to make `LinearMigrator` happy.
-    impl TypeErasedLinearlyMigrateable for FakeMigrateable {
-        fn as_model(&self) -> &dyn crate::model::erased::TypeErasedModel {
-            self
-        }
-
-        fn migrates_to(&self, direction: MigrationDirection) -> Option<&'static str> {
-            match direction {
-                Forward => self.forward,
-                Backward => self.backward,
+            impl $name {
+                fn new() -> Self {
+                    Self {
+                        ident: $repr.to_string(),
+                    }
+                }
             }
-        }
 
-        fn migrate(
-            &self,
-            _current: Box<dyn Any>,
-            _direction: MigrationDirection,
-        ) -> Result<Box<dyn Any>, LinearMigratorError> {
-            todo!()
-        }
+            impl crate::SettingsModel for $name {
+                type PartialKind = Self;
+                type ErrorKind = Infallible;
 
-        fn serialize(
-            &self,
-            _current: Box<dyn Any>,
-        ) -> Result<serde_json::Value, LinearMigratorError> {
-            todo!()
-        }
+                fn get_version() -> &'static str {
+                    $repr
+                }
+
+                fn set(
+                    // We allow any transition from current value to target, so we don't need the current value
+                    _current_value: Option<Self>,
+                    _target: Self,
+                ) -> Result<Self, Infallible> {
+                    Ok(Self::new())
+                }
+
+                fn generate(
+                    _existing_partial: Option<Self::PartialKind>,
+                    // We do not depend on any settings
+                    _dependent_settings: Option<serde_json::Value>,
+                ) -> Result<crate::GenerateResult<Self::PartialKind, Self>, Infallible> {
+                    Ok(crate::GenerateResult::Complete(Self::new()))
+                }
+
+                fn validate(
+                    _value: Self,
+                    _validated_settings: Option<serde_json::Value>,
+                ) -> Result<bool, Infallible> {
+                    Ok(true)
+                }
+            }
+
+            // We have to implement `TypeErasedModel` to make `ModelStore` happy
+            impl LinearlyMigrateable for $name {
+                type ForwardMigrationTarget = $forward;
+                type BackwardMigrationTarget = $backward;
+
+                /// We migrate forward by splitting the motd on whitespace
+                fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget, Infallible> {
+                    Ok($forward::new())
+                }
+
+                fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget, Infallible> {
+                    Ok($backward::new())
+                }
+            }
+        };
+    }
+
+    basic_migrateable!(BasicV1, "v1", NoMigration, BasicV2);
+    basic_migrateable!(BasicV2, "v2", BasicV1, BasicV3);
+    basic_migrateable!(BasicV3, "v3", BasicV2, BasicV4);
+    basic_migrateable!(BasicV4, "v4", BasicV3, BasicV5);
+    basic_migrateable!(BasicV5, "v5", BasicV4, NoMigration);
+
+    fn test_extension_builder() -> LinearMigratorExtensionBuilder {
+        LinearMigratorExtensionBuilder::with_name("fake").with_models(vec![
+            BottlerocketSetting::<BasicV1>::model(),
+            BottlerocketSetting::<BasicV2>::model(),
+            BottlerocketSetting::<BasicV3>::model(),
+            BottlerocketSetting::<BasicV4>::model(),
+            BottlerocketSetting::<BasicV5>::model(),
+        ])
     }
 
     #[test]
     fn test_find_migration_route() {
-        let models = FakeModelStore::from(hashmap! {
-                "v1" => FakeMigrateable::new("v1", None, Some("v2")),
-                "v2" => FakeMigrateable::new("v2", Some("v1"), Some("v3")),
-                "v3" => FakeMigrateable::new("v3", Some("v2"), Some("v4")),
-                "v4" => FakeMigrateable::new("v4", Some("v3"), Some("v5")),
-                "v5" => FakeMigrateable::new("v5", Some("v4"), None),
-        });
+        let models = test_extension_builder().build().unwrap();
 
         [
             ("v3", "v3", Some(vec![])),
@@ -430,13 +447,7 @@ mod test {
 
     #[test]
     fn test_migration_iter() {
-        let models = FakeModelStore::from(hashmap! {
-                "v1" => FakeMigrateable::new("v1", None, Some("v2")),
-                "v2" => FakeMigrateable::new("v2", Some("v1"), Some("v3")),
-                "v3" => FakeMigrateable::new("v3", Some("v2"), Some("v4")),
-                "v4" => FakeMigrateable::new("v4", Some("v3"), Some("v5")),
-                "v5" => FakeMigrateable::new("v5", Some("v4"), None),
-        });
+        let models = test_extension_builder().build().unwrap();
 
         let versions = LinearMigrator
             .migration_iter(&models, "v1", Forward)
@@ -444,5 +455,65 @@ mod test {
             .collect::<Vec<_>>();
 
         assert_eq!(versions, vec!["v1", "v2", "v3", "v4", "v5"])
+    }
+
+    #[test]
+    fn test_target_migration() {
+        let models = test_extension_builder().build().unwrap();
+
+        let starting_version = "v1";
+        let starting_value = Box::new(BasicV1::new()) as Box<dyn Any>;
+        let target_version = "v5";
+
+        assert_eq!(
+            LinearMigrator
+                .perform_migration(&models, starting_value, starting_version, target_version)
+                .unwrap(),
+            serde_json::to_value(BasicV5::new()).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_flood_migration() {
+        let models = test_extension_builder().build().unwrap();
+
+        let expected_flood_results = vec![
+            MigrationResult {
+                version: "v1",
+                value: serde_json::to_value(BasicV1::new()).unwrap(),
+            },
+            MigrationResult {
+                version: "v2",
+                value: serde_json::to_value(BasicV2::new()).unwrap(),
+            },
+            MigrationResult {
+                version: "v3",
+                value: serde_json::to_value(BasicV3::new()).unwrap(),
+            },
+            MigrationResult {
+                version: "v4",
+                value: serde_json::to_value(BasicV4::new()).unwrap(),
+            },
+            MigrationResult {
+                version: "v5",
+                value: serde_json::to_value(BasicV5::new()).unwrap(),
+            },
+        ];
+
+        vec![
+            (Box::new(BasicV1::new()) as Box<dyn Any>, "v1"),
+            (Box::new(BasicV2::new()) as Box<dyn Any>, "v2"),
+            (Box::new(BasicV3::new()) as Box<dyn Any>, "v3"),
+            (Box::new(BasicV4::new()) as Box<dyn Any>, "v4"),
+            (Box::new(BasicV5::new()) as Box<dyn Any>, "v5"),
+        ]
+        .into_iter()
+        .for_each(|(starting_value, starting_version)| {
+            eprintln!("Testing flood migration starting from {}", starting_version);
+            let results = LinearMigrator
+                .perform_flood_migrations(&models, starting_value, starting_version)
+                .unwrap();
+            assert_eq!(results, expected_flood_results)
+        });
     }
 }

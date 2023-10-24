@@ -53,11 +53,11 @@ impl LinearlyMigrateable for MotdV2 {
     type ForwardMigrationTarget = NoMigration;
     type BackwardMigrationTarget = MotdV1;
 
-    fn migrate_forward(self) -> Result<Self::ForwardMigrationTarget> {
+    fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 
-    fn migrate_backward(self) -> Result<Self::BackwardMigrationTarget> {
+    fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget> {
         // Join with a single space character
         let Self(inner_value) = self;
 

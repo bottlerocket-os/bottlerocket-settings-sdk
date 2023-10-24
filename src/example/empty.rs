@@ -35,11 +35,11 @@ impl LinearlyMigrateable for EmptySetting {
     type ForwardMigrationTarget = NoMigration;
     type BackwardMigrationTarget = NoMigration;
 
-    fn migrate_forward(self) -> Result<Self::ForwardMigrationTarget> {
+    fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 
-    fn migrate_backward(self) -> Result<Self::BackwardMigrationTarget> {
+    fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 }

@@ -50,17 +50,18 @@ impl LinearlyMigrateable for MotdV1 {
     type BackwardMigrationTarget = NoMigration;
 
     /// We migrate forward by splitting the motd on whitespace
-    fn migrate_forward(self) -> Result<Self::ForwardMigrationTarget> {
+    fn migrate_forward(&self) -> Result<Self::ForwardMigrationTarget> {
         let Self(inner_value) = self;
 
         let v2_value = inner_value
+            .as_ref()
             .map(|inner_value| inner_value.split_whitespace().map(str::to_string).collect())
             .unwrap_or_default();
 
         Ok(MotdV2(v2_value))
     }
 
-    fn migrate_backward(self) -> Result<Self::BackwardMigrationTarget> {
+    fn migrate_backward(&self) -> Result<Self::BackwardMigrationTarget> {
         NoMigration::no_defined_migration()
     }
 }
