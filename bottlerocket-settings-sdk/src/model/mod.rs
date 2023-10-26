@@ -1,8 +1,11 @@
 //! Provides the [`SettingsModel`] trait interface required to model new settings in the
 //! Bottlerocket API using the settings SDK.
+use crate::HelperDef;
 use serde::Deserialize;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{fmt::Debug, marker::PhantomData};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::marker::PhantomData;
 
 #[doc(hidden)]
 pub mod erased;
@@ -98,6 +101,11 @@ pub trait SettingsModel: Sized + Serialize + DeserializeOwned + Debug {
         _value: Self,
         _validated_settings: Option<serde_json::Value>,
     ) -> Result<(), Self::ErrorKind>;
+
+    /// Returns the set of template helpers associated with this settings model.
+    fn template_helpers() -> Result<HashMap<String, Box<dyn HelperDef>>, Self::ErrorKind> {
+        Ok(HashMap::new())
+    }
 }
 
 /// This struct wraps [`SettingsModel`]s in a referencable object which is passed to the
@@ -169,6 +177,7 @@ where
 
 mod error {
     #![allow(missing_docs)]
+    use crate::HelperError;
     use snafu::Snafu;
 
     /// The error type returned when interacting with a user-defined
@@ -188,6 +197,36 @@ mod error {
             input: serde_json::Value,
             version: &'static str,
             source: serde_json::Error,
+        },
+
+        #[snafu(display(
+            "Failed to execute helper '{}@{}': {}",
+            helper_name,
+            helper_version,
+            source
+        ))]
+        ExecuteTemplateHelper {
+            helper_name: String,
+            helper_version: &'static str,
+            source: HelperError,
+        },
+
+        #[snafu(display(
+            "Failed to find template helper '{}@{}' from settings extension",
+            helper_name,
+            helper_version,
+        ))]
+        FetchTemplateHelper {
+            helper_name: String,
+            helper_version: &'static str,
+        },
+
+        #[snafu(display(
+            "Failed to request template helpers from settings extension: {}",
+            source
+        ))]
+        FetchTemplateHelpers {
+            source: Box<dyn std::error::Error + Send + Sync + 'static>,
         },
 
         #[snafu(display(

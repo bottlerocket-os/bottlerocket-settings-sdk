@@ -4,7 +4,8 @@
 //! with function name collisions if needed.
 use super::{error, SettingsExtensionError};
 use crate::cli::proto1::{
-    GenerateCommand, MigrateCommand, Proto1Command, SetCommand, ValidateCommand,
+    GenerateCommand, MigrateCommand, Proto1Command, SetCommand, TemplateHelperCommand,
+    ValidateCommand,
 };
 use crate::migrate::Migrator;
 use crate::model::erased::AsTypeErasedModel;
@@ -51,9 +52,7 @@ where
         Proto1Command::Generate(g) => extension.generate(g).and_then(json_stringify),
         Proto1Command::Migrate(m) => extension.migrate(m).and_then(json_stringify),
         Proto1Command::Validate(v) => extension.validate(v).map(|_| String::new()),
-        Proto1Command::Helper(_h) => {
-            todo!("https://github.com/bottlerocket-os/bottlerocket-settings-sdk/issues/3")
-        }
+        Proto1Command::Helper(h) => extension.template_helper(h).and_then(json_stringify),
     }
 }
 
@@ -76,6 +75,10 @@ pub trait Proto1: Debug {
         &self,
         args: ValidateCommand,
     ) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>>;
+    fn template_helper(
+        &self,
+        args: TemplateHelperCommand,
+    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
 }
 
 impl<Mi, Mo> Proto1 for SettingsExtension<Mi, Mo>
@@ -159,5 +162,18 @@ where
             .as_model()
             .validate(args.value, args.required_settings)
             .context(error::ValidateSnafu)
+    }
+
+    fn template_helper(
+        &self,
+        args: TemplateHelperCommand,
+    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
+        self.model(&args.setting_version)
+            .context(error::NoSuchModelSnafu {
+                setting_version: args.setting_version,
+            })?
+            .as_model()
+            .execute_template_helper(&args.helper_name, args.arg)
+            .context(error::TemplateHelperSnafu)
     }
 }

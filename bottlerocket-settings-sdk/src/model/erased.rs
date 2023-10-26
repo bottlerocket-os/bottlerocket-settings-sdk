@@ -6,7 +6,7 @@
 //! This module contains traits which erase the underlying [`SettingsModel`] types, allowing the
 //! SDK to refer to the [`SettingsModel`]s as a collection of trait objects.
 use super::{error, BottlerocketSetting, BottlerocketSettingError, GenerateResult, SettingsModel};
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use std::any::Any;
 use std::fmt::Debug;
 use tracing::{debug, instrument};
@@ -73,6 +73,13 @@ pub trait TypeErasedModel: Debug {
         &self,
         value: serde_json::Value,
     ) -> Result<Box<dyn Any>, BottlerocketSettingError>;
+
+    /// Executes a template helper associated with this model version.
+    fn execute_template_helper(
+        &self,
+        helper_name: &str,
+        args: Vec<serde_json::Value>,
+    ) -> Result<serde_json::Value, BottlerocketSettingError>;
 }
 
 /// A helper trait used to "upcast" supertraits over the [`TypeErasedModel`] trait.
@@ -188,6 +195,30 @@ impl<T: SettingsModel + 'static> TypeErasedModel for BottlerocketSetting<T> {
             .map_err(Into::into)
             .context(error::ValidateSettingSnafu {
                 version: T::get_version(),
+            })
+    }
+
+    fn execute_template_helper(
+        &self,
+        helper_name: &str,
+        args: Vec<serde_json::Value>,
+    ) -> Result<serde_json::Value, BottlerocketSettingError> {
+        let all_helpers = T::template_helpers()
+            .map_err(Into::into)
+            .context(error::FetchTemplateHelpersSnafu)?;
+
+        let helper = all_helpers
+            .get(helper_name)
+            .context(error::FetchTemplateHelperSnafu {
+                helper_name: helper_name.to_string(),
+                helper_version: T::get_version(),
+            })?;
+
+        helper
+            .helper_fn(args)
+            .context(error::ExecuteTemplateHelperSnafu {
+                helper_name: helper_name.to_string(),
+                helper_version: T::get_version(),
             })
     }
 

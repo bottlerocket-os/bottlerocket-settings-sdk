@@ -94,13 +94,17 @@ pub struct MigrateCommand {
 
 #[derive(Args, Debug)]
 pub struct TemplateHelperCommand {
+    /// The version of the setting which should be used
+    #[arg(long)]
+    pub setting_version: String,
+
     /// The name of the helper to call
     #[arg(long)]
     pub helper_name: String,
 
     /// The arguments for the given helper
     #[arg(long, value_parser = parse_json)]
-    pub args: Vec<serde_json::Value>,
+    pub arg: Vec<serde_json::Value>,
 }
 
 /// Helper for `clap` to parse JSON values.

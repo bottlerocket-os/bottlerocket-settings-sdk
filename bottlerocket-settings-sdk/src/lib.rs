@@ -22,12 +22,14 @@ tool wishes to invoke a settings extension and parse the output.
 pub mod cli;
 #[cfg(feature = "extension")]
 pub mod extension;
+pub mod helper;
 #[cfg(feature = "extension")]
 pub mod migrate;
 pub mod model;
 
 #[cfg(feature = "extension")]
 pub use crate::extension::SettingsExtension;
+pub use helper::{template_helper, HelperDef, HelperError};
 #[cfg(feature = "extension")]
 pub use migrate::{
     LinearMigrator, LinearMigratorExtensionBuilder, LinearMigratorModel, LinearlyMigrateable,
