@@ -35,4 +35,10 @@ wildcards = "deny"
 skip = [
     # snafu is using an older version of syn   
     { name = "syn", version = "1" },
+
+    # bottlerocket-settings-sdk and bottlerocket-template-helper are circularly dependent,
+    # bottlerocket-template-helper has a dev-dependency on the settings-sdk for tests.
+    # In order to bootstrap releases on crates.io, we must drop the `version` requirement the first
+    # time that we publish bottlerocket-template-helper
+    { name = "bottlerocket-template-helper", version = "*" }
 ]
