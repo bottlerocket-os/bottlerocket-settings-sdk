@@ -1,6 +1,6 @@
 [package]
 name = "bottlerocket-template-helper"
-version = "0.1.0"
+version = "0.1.0-alpha.0"
 license = "Apache-2.0 OR MIT"
 edition = "2021"
 repository = "https://github.com/bottlerocket-os/bottlerocket-settings-sdk"
@@ -22,4 +22,4 @@ syn = { version = "1", default-features = false, features = ["full", "parsing", 
 
 [dev-dependencies]
 anyhow = "1"
-bottlerocket-settings-sdk = { path = "../bottlerocket-settings-sdk", version = "0.1" }
+bottlerocket-settings-sdk = { path = "../bottlerocket-settings-sdk", version = "0.1.0-alpha" }
