@@ -3,8 +3,8 @@
 use crate::cli;
 use crate::migrate::{Migrator, ModelStore};
 use crate::model::erased::AsTypeErasedModel;
-use clap::Parser;
-use snafu::{ensure, ResultExt};
+use argh::FromArgs;
+use snafu::{ensure, OptionExt, ResultExt};
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::process::ExitCode;
@@ -103,7 +103,7 @@ where
     /// Users of this method should not separately write to `stdout`, as this could break adherence
     /// to the settings extension CLI protocol.
     pub fn run(self) -> ExitCode {
-        let args = cli::Cli::parse();
+        let args: cli::Cli = argh::from_env();
         info!(extension = ?self, protocol = ?args.protocol, "Starting settings extensions");
         debug!(?args, "CLI arguments");
 
@@ -122,7 +122,21 @@ where
         I: IntoIterator<Item = T>,
         T: Into<OsString> + Clone,
     {
-        let args = cli::Cli::try_parse_from(iter).context(error::ParseCLIArgsSnafu)?;
+        let all_inputs: Vec<String> = iter
+            .into_iter()
+            .map(|s| s.into().to_string_lossy().into_owned())
+            .collect();
+
+        let mut input_iter = all_inputs.iter().map(AsRef::as_ref);
+        let command_name = [input_iter.next().context(error::ParseCLICommandSnafu)?];
+        let args: Vec<&str> = input_iter.collect();
+
+        let args = cli::Cli::from_args(&command_name, &args).map_err(|e| {
+            error::SettingsExtensionError::ParseCLIArgs {
+                parser_output: e.output,
+            }
+        })?;
+
         info!(cli_protocol = %args.protocol, "Starting settings extensions.");
 
         match args.protocol {
@@ -227,8 +241,11 @@ pub mod error {
         #[snafu(display("Requested model version '{}' not found", setting_version))]
         NoSuchModel { setting_version: String },
 
-        #[snafu(display("Failed to parse CLI arguments: {}", source))]
-        ParseCLIArgs { source: clap::Error },
+        #[snafu(display("Failed to parse CLI arguments: No CLI command given"))]
+        ParseCLICommand,
+
+        #[snafu(display("Failed to parse CLI arguments: {}", parser_output))]
+        ParseCLIArgs { parser_output: String },
 
         #[snafu(display("Failed to write settings extension output as JSON: {}", source))]
         SerializeResult { source: serde_json::Error },

@@ -4,8 +4,8 @@
 //! with function name collisions if needed.
 use super::{error, SettingsExtensionError};
 use crate::cli::proto1::{
-    GenerateCommand, MigrateCommand, Proto1Command, SetCommand, TemplateHelperCommand,
-    ValidateCommand,
+    FloodMigrateCommand, GenerateCommand, MigrateCommand, Proto1Command, SetCommand,
+    TemplateHelperCommand, ValidateCommand,
 };
 use crate::migrate::Migrator;
 use crate::model::erased::AsTypeErasedModel;
@@ -51,6 +51,7 @@ where
         Proto1Command::Set(s) => extension.set(s).map(|_| String::new()),
         Proto1Command::Generate(g) => extension.generate(g).and_then(json_stringify),
         Proto1Command::Migrate(m) => extension.migrate(m).and_then(json_stringify),
+        Proto1Command::FloodMigrate(m) => extension.flood_migrate(m).and_then(json_stringify),
         Proto1Command::Validate(v) => extension.validate(v).map(|_| String::new()),
         Proto1Command::Helper(h) => extension.template_helper(h).and_then(json_stringify),
     }
@@ -70,6 +71,10 @@ pub trait Proto1: Debug {
     fn migrate(
         &self,
         args: MigrateCommand,
+    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
+    fn flood_migrate(
+        &self,
+        args: FloodMigrateCommand,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
     fn validate(
         &self,
@@ -135,19 +140,39 @@ where
                     setting_version: args.from_version.clone(),
                 })?;
 
-        match (args.target_version, args.flood) {
-            (Some(target_version), _) => self
-                .migrator
-                .perform_migration(self, starting_value, &args.from_version, &target_version)
-                .context(error::MigrateSnafu),
+        self.migrator
+            .perform_migration(
+                self,
+                starting_value,
+                &args.from_version,
+                &args.target_version,
+            )
+            .context(error::MigrateSnafu)
+    }
 
-            // target_version is None, flood *must* be true.
-            (None, _flood) => self
-                .migrator
-                .perform_flood_migrations(self, starting_value, &args.from_version)
-                .context(error::MigrateSnafu)
-                .and_then(|value| serde_json::to_value(value).context(error::SerializeResultSnafu)),
-        }
+    #[instrument(err)]
+    fn flood_migrate(
+        &self,
+        args: FloodMigrateCommand,
+    ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
+        let model = self
+            .model(&args.from_version)
+            .context(error::NoSuchModelSnafu {
+                setting_version: args.from_version.clone(),
+            })?;
+
+        let starting_value =
+            model
+                .as_model()
+                .parse_erased(args.value)
+                .context(error::ModelParseSnafu {
+                    setting_version: args.from_version.clone(),
+                })?;
+
+        self.migrator
+            .perform_flood_migrations(self, starting_value, &args.from_version)
+            .context(error::MigrateSnafu)
+            .and_then(|value| serde_json::to_value(value).context(error::SerializeResultSnafu))
     }
 
     #[instrument(err)]

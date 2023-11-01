@@ -1,14 +1,19 @@
 //! Bottlerocket Settings Extension CLI proto1 definition.
 #![allow(missing_docs)]
-use clap::{Args, Subcommand};
+use argh::FromArgs;
 
-#[derive(Args, Debug)]
+/// Use Settings Extension CLI protocol proto1.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "proto1")]
 pub struct Protocol1 {
-    #[command(subcommand)]
+    /// the command to invoke against the settings extension
+    #[argh(subcommand)]
     pub command: Proto1Command,
 }
 
-#[derive(Subcommand, Debug)]
+/// The command to invoke against the settings extension.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand)]
 pub enum Proto1Command {
     /// Modify values owned by this setting
     Set(SetCommand),
@@ -22,92 +27,109 @@ pub enum Proto1Command {
     /// Migrate this setting from one given version to another
     Migrate(MigrateCommand),
 
+    /// Migrate this setting from one given version to all other known versions
+    FloodMigrate(FloodMigrateCommand),
+
     ///  Execute a helper. Typically this is used to render config templates
     Helper(TemplateHelperCommand),
 }
 
 impl Proto1Command {}
 
-#[derive(Args, Debug)]
+/// Validates that a new setting value can be persisted to the Bottlerocket datastore.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "set")]
 pub struct SetCommand {
-    /// The version of the setting which should be used
-    #[arg(long)]
+    /// the version of the setting which should be used
+    #[argh(option)]
     pub setting_version: String,
 
-    /// The requested value to be set for the incoming setting
-    #[arg(long, value_parser = parse_json)]
+    /// the requested value to be set for the incoming setting
+    #[argh(option)]
     pub value: serde_json::Value,
 
-    /// The current value of this settings tree
-    #[arg(long, value_parser = parse_json)]
+    /// the current value of this settings tree
+    #[argh(option)]
     pub current_value: Option<serde_json::Value>,
 }
 
-#[derive(Args, Debug)]
+/// Dynamically generates a value for this setting given, possibly from other settings.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "generate")]
 pub struct GenerateCommand {
-    /// The version of the setting which should be used
-    #[arg(long)]
+    /// the version of the setting which should be used
+    #[argh(option)]
     pub setting_version: String,
 
-    /// A json value containing any partially generated data for this setting
-    #[arg(long, value_parser = parse_json)]
+    /// a json value containing any partially generated data for this setting
+    #[argh(option)]
     pub existing_partial: Option<serde_json::Value>,
 
-    /// A json value containing any requested settings partials needed to generate this one
-    #[arg(long, value_parser = parse_json)]
+    /// a json value containing any requested settings partials needed to generate this one
+    #[argh(option)]
     pub required_settings: Option<serde_json::Value>,
 }
 
-#[derive(Args, Debug)]
+/// Validates an incoming setting, possibly cross-validated with other settings.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "validate")]
 pub struct ValidateCommand {
-    /// The version of the setting which should be used
-    #[arg(long)]
+    /// the version of the setting which should be used
+    #[argh(option)]
     pub setting_version: String,
 
-    /// A json value containing any partially generated data for this setting
-    #[arg(long, value_parser = parse_json)]
+    /// a json value containing any partially generated data for this setting
+    #[argh(option)]
     pub value: serde_json::Value,
 
-    /// A json value containing any requested settings partials needed to generate this one
-    #[arg(long, value_parser = parse_json)]
+    /// a json value containing any requested settings partials needed to generate this one
+    #[argh(option)]
     pub required_settings: Option<serde_json::Value>,
 }
 
-#[derive(Args, Debug)]
+/// Migrates a setting value from one version to another.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "migrate")]
 pub struct MigrateCommand {
-    /// A json value containing the current value of the setting
-    #[arg(long, value_parser = parse_json)]
+    /// a json value containing the current value of the setting
+    #[argh(option)]
     pub value: serde_json::Value,
 
-    /// The version of the settings data being migrated
-    #[arg(long)]
+    /// the version of the settings data being migrated
+    #[argh(option)]
     pub from_version: String,
 
-    /// The desired resulting version for the settings data
-    #[arg(long, group = "migration-type")]
-    pub target_version: Option<String>,
-
-    /// Triggers a batch migration to all known setting versions
-    #[arg(long, group = "migration-type")]
-    pub flood: bool,
+    /// the desired resulting version for the settings data
+    #[argh(option)]
+    pub target_version: String,
 }
 
-#[derive(Args, Debug)]
+/// Migrates a setting value from one version to all other known versions.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "flood-migrate")]
+pub struct FloodMigrateCommand {
+    /// a json value containing the current value of the setting
+    #[argh(option)]
+    pub value: serde_json::Value,
+
+    /// the version of the settings data being migrated
+    #[argh(option)]
+    pub from_version: String,
+}
+
+/// Executes a template helper to assist in rendering values to a configuration file.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "helper")]
 pub struct TemplateHelperCommand {
-    /// The version of the setting which should be used
-    #[arg(long)]
+    /// the version of the setting which should be used
+    #[argh(option)]
     pub setting_version: String,
 
-    /// The name of the helper to call
-    #[arg(long)]
+    /// the name of the helper to call
+    #[argh(option)]
     pub helper_name: String,
 
-    /// The arguments for the given helper
-    #[arg(long, value_parser = parse_json)]
+    /// the arguments for the given helper
+    #[argh(option)]
     pub arg: Vec<serde_json::Value>,
-}
-
-/// Helper for `clap` to parse JSON values.
-fn parse_json(arg: &str) -> Result<serde_json::Value, serde_json::Error> {
-    serde_json::from_str(arg)
 }
