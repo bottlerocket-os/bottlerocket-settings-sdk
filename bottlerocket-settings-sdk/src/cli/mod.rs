@@ -5,20 +5,20 @@
 #![allow(missing_docs)]
 pub mod proto1;
 
+use argh::FromArgs;
 use std::fmt::Display;
 
-use clap::{Parser, Subcommand};
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-#[command(propagate_version = true)]
+/// Top-level CLI command.
+#[derive(FromArgs, Debug)]
 pub struct Cli {
-    /// The Bottlerocket Settings CLI protocol to use
-    #[command(subcommand)]
+    /// the Bottlerocket Settings CLI protocol to use
+    #[argh(subcommand)]
     pub protocol: Protocol,
 }
 
-#[derive(Subcommand, Debug)]
+/// The CLI protocol to use when invoking the extension.
+#[derive(FromArgs, Debug)]
+#[argh(subcommand)]
 pub enum Protocol {
     #[cfg(feature = "proto1")]
     /// Settings extension protocol 1

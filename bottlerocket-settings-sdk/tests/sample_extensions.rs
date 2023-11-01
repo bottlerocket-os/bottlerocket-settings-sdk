@@ -179,12 +179,11 @@ mod helpers {
         let args = vec![
             "extension",
             "proto1",
-            "migrate",
+            "flood-migrate",
             "--value",
             &value,
             "--from-version",
             from_version,
-            "--flood",
         ];
 
         extension
