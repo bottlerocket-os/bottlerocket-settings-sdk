@@ -8,7 +8,7 @@ pub mod proto1;
 use argh::FromArgs;
 use std::fmt::Display;
 
-/// Top-level CLI command.
+/// Provides a CLI interface to the settings extension.
 #[derive(FromArgs, Debug)]
 pub struct Cli {
     /// the Bottlerocket Settings CLI protocol to use
