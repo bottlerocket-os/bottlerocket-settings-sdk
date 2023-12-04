@@ -16,6 +16,9 @@ pub use linear::{
     LinearMigrator, LinearMigratorExtensionBuilder, LinearMigratorModel, LinearlyMigrateable,
 };
 
+pub mod null;
+pub use null::{NullMigrator, NullMigratorExtensionBuilder};
+
 /// Implementors of the `Migrator` trait inform a [`SettingsExtension`](crate::SettingsExtension)
 /// how to migrate settings values between different versions.
 pub trait Migrator: Debug {

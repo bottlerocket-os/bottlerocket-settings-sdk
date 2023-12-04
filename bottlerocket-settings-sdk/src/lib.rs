@@ -33,7 +33,7 @@ pub use helper::{template_helper, HelperDef, HelperError};
 #[cfg(feature = "extension")]
 pub use migrate::{
     LinearMigrator, LinearMigratorExtensionBuilder, LinearMigratorModel, LinearlyMigrateable,
-    Migrator, NoMigration,
+    Migrator, NoMigration, NullMigrator, NullMigratorExtensionBuilder,
 };
 
 pub use model::{BottlerocketSetting, GenerateResult, SettingsModel};

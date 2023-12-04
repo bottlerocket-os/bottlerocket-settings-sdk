@@ -62,7 +62,7 @@ where
         Ok(extension)
     }
 
-    /// Converts a list of models into a map of Version => Model while checing for uniqueness.
+    /// Converts a list of models into a map of Version => Model while checking for uniqueness.
     fn build_model_map(
         models: Vec<Mo>,
     ) -> Result<HashMap<Version, Mo>, SettingsExtensionError<Mi::ErrorKind>> {
