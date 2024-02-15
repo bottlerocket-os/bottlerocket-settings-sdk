@@ -108,7 +108,9 @@ where
         debug!(?args, "CLI arguments");
 
         match args.protocol {
-            cli::Protocol::Proto1(p) => proto1::run_extension(self, p.command),
+            cli::Protocol::Proto1(p) => {
+                proto1::run_extension(self, p.command, p.input_file.unwrap_or_default())
+            }
         }
     }
 
@@ -140,7 +142,9 @@ where
         info!(cli_protocol = %args.protocol, "Starting settings extensions.");
 
         match args.protocol {
-            cli::Protocol::Proto1(p) => proto1::try_run_extension(self, p.command),
+            cli::Protocol::Proto1(p) => {
+                proto1::try_run_extension(self, p.command, p.input_file.unwrap_or_default())
+            }
         }
     }
 
@@ -246,6 +250,15 @@ pub mod error {
 
         #[snafu(display("Failed to parse CLI arguments: {}", parser_output))]
         ParseCLIArgs { parser_output: String },
+
+        #[snafu(display("Failed to parse to JSON: {}", source))]
+        ParseJSON { source: serde_json::Error },
+
+        #[snafu(display("Failed to read from '{}': {}", filename, source))]
+        ReadInput {
+            filename: String,
+            source: std::io::Error,
+        },
 
         #[snafu(display("Failed to write settings extension output as JSON: {}", source))]
         SerializeResult { source: serde_json::Error },
