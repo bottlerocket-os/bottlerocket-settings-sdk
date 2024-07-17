@@ -4,8 +4,8 @@
 //! with function name collisions if needed.
 use super::{error, SettingsExtensionError};
 use crate::cli::proto1::{
-    FloodMigrateCommand, GenerateCommand, MigrateCommand, Proto1Command, SetCommand,
-    TemplateHelperCommand, ValidateCommand,
+    input::InputFile, FloodMigrateArguments, GenerateArguments, MigrateArguments, Proto1Command,
+    SetArguments, TemplateHelperArguments, ValidateArguments,
 };
 use crate::migrate::Migrator;
 use crate::model::erased::AsTypeErasedModel;
@@ -19,8 +19,12 @@ use tracing::instrument;
 ///
 /// Results are printed to stdout/stderr, adhering to Bottlerocket settings extension CLI proto1.
 /// Once the extension has run, the program terminates.
-pub fn run_extension<P: Proto1>(extension: P, cmd: Proto1Command) -> ExitCode {
-    match try_run_extension(extension, cmd) {
+pub fn run_extension<P: Proto1>(
+    extension: P,
+    cmd: Proto1Command,
+    input_file: InputFile,
+) -> ExitCode {
+    match try_run_extension(extension, cmd, input_file) {
         Ok(output) => {
             println!("{}", &output);
             ExitCode::SUCCESS
@@ -39,6 +43,7 @@ pub fn run_extension<P: Proto1>(extension: P, cmd: Proto1Command) -> ExitCode {
 pub fn try_run_extension<P, ME>(
     extension: P,
     cmd: Proto1Command,
+    input_file: InputFile,
 ) -> Result<String, SettingsExtensionError<ME>>
 where
     P: Proto1<MigratorErrorKind = ME>,
@@ -47,13 +52,35 @@ where
     let json_stringify =
         |value| serde_json::to_string_pretty(&value).context(error::SerializeResultSnafu);
 
+    let input = std::fs::read_to_string(&input_file).context(error::ReadInputSnafu {
+        filename: input_file.to_string(),
+    })?;
+
     match cmd {
-        Proto1Command::Set(s) => extension.set(s).map(|_| String::new()),
-        Proto1Command::Generate(g) => extension.generate(g).and_then(json_stringify),
-        Proto1Command::Migrate(m) => extension.migrate(m).and_then(json_stringify),
-        Proto1Command::FloodMigrate(m) => extension.flood_migrate(m).and_then(json_stringify),
-        Proto1Command::Validate(v) => extension.validate(v).map(|_| String::new()),
-        Proto1Command::Helper(h) => extension.template_helper(h).and_then(json_stringify),
+        Proto1Command::Set(_) => {
+            let s = serde_json::from_str(&input).context(error::ParseJSONSnafu)?;
+            extension.set(s).map(|_| String::new())
+        }
+        Proto1Command::Generate(_) => {
+            let g = serde_json::from_str(&input).context(error::ParseJSONSnafu)?;
+            extension.generate(g).and_then(json_stringify)
+        }
+        Proto1Command::Migrate(_) => {
+            let m = serde_json::from_str(&input).context(error::ParseJSONSnafu)?;
+            extension.migrate(m).and_then(json_stringify)
+        }
+        Proto1Command::FloodMigrate(_) => {
+            let m = serde_json::from_str(&input).context(error::ParseJSONSnafu)?;
+            extension.flood_migrate(m).and_then(json_stringify)
+        }
+        Proto1Command::Validate(_) => {
+            let v = serde_json::from_str(&input).context(error::ParseJSONSnafu)?;
+            extension.validate(v).map(|_| String::new())
+        }
+        Proto1Command::Helper(_) => {
+            let h = serde_json::from_str(&input).context(error::ParseJSONSnafu)?;
+            extension.template_helper(h).and_then(json_stringify)
+        }
     }
 }
 
@@ -63,26 +90,29 @@ where
 pub trait Proto1: Debug {
     type MigratorErrorKind: std::error::Error + Send + Sync + 'static;
 
-    fn set(&self, args: SetCommand) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>>;
+    fn set(
+        &self,
+        args: SetArguments,
+    ) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>>;
     fn generate(
         &self,
-        args: GenerateCommand,
+        args: GenerateArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
     fn migrate(
         &self,
-        args: MigrateCommand,
+        args: MigrateArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
     fn flood_migrate(
         &self,
-        args: FloodMigrateCommand,
+        args: FloodMigrateArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
     fn validate(
         &self,
-        args: ValidateCommand,
+        args: ValidateArguments,
     ) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>>;
     fn template_helper(
         &self,
-        args: TemplateHelperCommand,
+        args: TemplateHelperArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>>;
 }
 
@@ -94,7 +124,10 @@ where
     type MigratorErrorKind = Mi::ErrorKind;
 
     #[instrument(err)]
-    fn set(&self, args: SetCommand) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>> {
+    fn set(
+        &self,
+        args: SetArguments,
+    ) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>> {
         self.model(&args.setting_version)
             .context(error::NoSuchModelSnafu {
                 setting_version: args.setting_version,
@@ -107,7 +140,7 @@ where
     #[instrument(err)]
     fn generate(
         &self,
-        args: GenerateCommand,
+        args: GenerateArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
         self.model(&args.setting_version)
             .context(error::NoSuchModelSnafu {
@@ -124,7 +157,7 @@ where
     #[instrument(err)]
     fn migrate(
         &self,
-        args: MigrateCommand,
+        args: MigrateArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
         let model = self
             .model(&args.from_version)
@@ -153,7 +186,7 @@ where
     #[instrument(err)]
     fn flood_migrate(
         &self,
-        args: FloodMigrateCommand,
+        args: FloodMigrateArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
         let model = self
             .model(&args.from_version)
@@ -178,7 +211,7 @@ where
     #[instrument(err)]
     fn validate(
         &self,
-        args: ValidateCommand,
+        args: ValidateArguments,
     ) -> Result<(), SettingsExtensionError<Self::MigratorErrorKind>> {
         self.model(&args.setting_version)
             .context(error::NoSuchModelSnafu {
@@ -191,7 +224,7 @@ where
 
     fn template_helper(
         &self,
-        args: TemplateHelperCommand,
+        args: TemplateHelperArguments,
     ) -> Result<serde_json::Value, SettingsExtensionError<Self::MigratorErrorKind>> {
         self.model(&args.setting_version)
             .context(error::NoSuchModelSnafu {
