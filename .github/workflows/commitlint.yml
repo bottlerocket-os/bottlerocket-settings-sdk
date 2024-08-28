@@ -1,0 +1,28 @@
+name: Lint Commit Messages
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+      - name: Install dependencies
+        run: npm install commitlint @commitlint/config-conventional
+      - name: Run commitlint against commits in PR
+        run: |
+          npx commitlint \
+            -g ${{ github.workspace }}/.commitlint.config.mjs \
+            --from ${{ github.event.pull_request.base.sha }} \
+            --to ${{ github.event.pull_request.head.sha }} \
+            --help-url="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_BASE_REF}/CONTRIBUTING.md" \
+            --verbose
