@@ -21,6 +21,25 @@ allow = [
 exceptions = [
     { name = "generational-arena", allow = ["MPL-2.0"] },
     { name = "unicode-ident", allow = ["MIT", "Apache-2.0", "Unicode-DFS-2016"] },
+    { name = "icu_collections", allow = ["Unicode-3.0"] },
+    { name = "icu_locid", allow = ["Unicode-3.0"] },
+    { name = "icu_locid_transform", allow = ["Unicode-3.0"] },
+    { name = "icu_locid_transform_data", allow = ["Unicode-3.0"] },
+    { name = "icu_normalizer", allow = ["Unicode-3.0"] },
+    { name = "icu_normalizer_data", allow = ["Unicode-3.0"] },
+    { name = "icu_properties", allow = ["Unicode-3.0"] },
+    { name = "icu_properties_data", allow = ["Unicode-3.0"] },
+    { name = "icu_provider", allow = ["Unicode-3.0"] },
+    { name = "icu_provider_macros", allow = ["Unicode-3.0"] },
+    { name = "litemap", allow = ["Unicode-3.0"] },
+    { name = "tinystr", allow = ["Unicode-3.0"] },
+    { name = "writeable", allow = ["Unicode-3.0"] },
+    { name = "yoke", allow = ["Unicode-3.0"] },
+    { name = "yoke-derive", allow = ["Unicode-3.0"] },
+    { name = "zerofrom", allow = ["Unicode-3.0"] },
+    { name = "zerofrom-derive", allow = ["Unicode-3.0"] },
+    { name = "zerovec", allow = ["Unicode-3.0"] },
+    { name = "zerovec-derive", allow = ["Unicode-3.0"] },
 ]
 
 [bans]
