@@ -57,7 +57,7 @@ bottlerocket-template-helper = { path = "./bottlerocket-template-helper", versio
 
 # Settings Models
 bottlerocket-model-derive = { path = "./bottlerocket-settings-models/model-derive", version = "0.1" }
-bottlerocket-modeled-types = { path = "./bottlerocket-settings-models/modeled-types", version = "0.8" }
+bottlerocket-modeled-types = { path = "./bottlerocket-settings-models/modeled-types", version = "0.9" }
 bottlerocket-scalar = { path = "./bottlerocket-settings-models/scalar", version = "0.1" }
 bottlerocket-scalar-derive = { path = "./bottlerocket-settings-models/scalar-derive", version = "0.1" }
 bottlerocket-string-impls-for = { path = "./bottlerocket-settings-models/string-impls-for", version = "0.1" }
@@ -75,7 +75,7 @@ settings-extension-ecs = { path = "./bottlerocket-settings-models/settings-exten
 settings-extension-host-containers = { path = "./bottlerocket-settings-models/settings-extensions/host-containers", version = "0.1" }
 settings-extension-kernel = { path = "./bottlerocket-settings-models/settings-extensions/kernel", version = "0.1" }
 settings-extension-kubernetes = { path = "./bottlerocket-settings-models/settings-extensions/kubernetes", version = "0.2" }
-settings-extension-kubelet-device-plugins = { path = "./bottlerocket-settings-models/settings-extensions/kubelet-device-plugins", version = "0.2" }
+settings-extension-kubelet-device-plugins = { path = "./bottlerocket-settings-models/settings-extensions/kubelet-device-plugins", version = "0.3" }
 settings-extension-metrics = { path = "./bottlerocket-settings-models/settings-extensions/metrics", version = "0.1" }
 settings-extension-motd = { path = "./bottlerocket-settings-models/settings-extensions/motd", version = "0.1" }
 settings-extension-network = { path = "./bottlerocket-settings-models/settings-extensions/network", version = "0.1" }

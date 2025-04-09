@@ -1,6 +1,6 @@
 [package]
 name = "settings-extension-kubelet-device-plugins"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Arnaldo Garcia Rincon <agarrcia@amazon.com>"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
