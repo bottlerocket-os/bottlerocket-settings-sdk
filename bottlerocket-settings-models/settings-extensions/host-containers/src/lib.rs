@@ -38,6 +38,7 @@ struct HostContainer {
     enabled: bool,
     superpowered: bool,
     user_data: ValidBase64,
+    command: Vec<String>,
 }
 
 type Result<T> = std::result::Result<T, Infallible>;
@@ -93,7 +94,8 @@ mod test {
                 "source": "public.ecr.aws/example/example",
                 "enabled": true,
                 "superpowered": true,
-                "user-data": "Zm9vCg=="
+                "user-data": "Zm9vCg==",
+                "command": ["echo", "hello"]
             }
         }"#;
 
@@ -107,6 +109,7 @@ mod test {
                 enabled: Some(true),
                 superpowered: Some(true),
                 user_data: Some(ValidBase64::try_from("Zm9vCg==").unwrap()),
+                command: Some(["echo", "hello"].map(String::from).into()),
             },
         );
 
