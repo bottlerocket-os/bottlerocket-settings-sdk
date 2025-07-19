@@ -39,6 +39,7 @@ struct BootstrapContainer {
     mode: BootstrapMode,
     user_data: ValidBase64,
     essential: bool,
+    command: Vec<String>,
 }
 
 type Result<T> = std::result::Result<T, Infallible>;
@@ -96,6 +97,7 @@ mod test {
                 "mode": "once",
                 "user-data": "dXNlcmRhdGE=",
                 "essential": true,
+                "command": ["echo", "hello"],
             }
         });
 
@@ -118,6 +120,7 @@ mod test {
                 mode: Some(BootstrapMode::try_from("once").unwrap()),
                 user_data: Some(ValidBase64::try_from("dXNlcmRhdGE=").unwrap()),
                 essential: Some(true),
+                command: Some(["echo", "hello"].map(String::from).into()),
             },
         );
 
