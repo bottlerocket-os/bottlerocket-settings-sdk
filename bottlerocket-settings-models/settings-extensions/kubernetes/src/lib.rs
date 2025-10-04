@@ -6,17 +6,16 @@ use bottlerocket_modeled_types::{
     KubernetesCloudProvider, KubernetesClusterDnsIp, KubernetesClusterName,
     KubernetesDurationValue, KubernetesEvictionKey, KubernetesHostnameOverrideSource,
     KubernetesLabelKey, KubernetesLabelValue, KubernetesMemoryManagerPolicy,
-    KubernetesMemoryReservation, KubernetesMemorySwapBehavior, KubernetesQuantityValue,
-    KubernetesReservedResourceKey, KubernetesTaintValue, KubernetesThresholdValue,
-    NonNegativeInteger, SingleLineString, TopologyManagerPolicy, TopologyManagerScope, Url,
-    ValidBase64, ValidLinuxHostname,
+    KubernetesMemoryReservation, KubernetesMemorySwapBehavior, KubernetesNodeIp,
+    KubernetesQuantityValue, KubernetesReservedResourceKey, KubernetesTaintValue,
+    KubernetesThresholdValue, NonNegativeInteger, SingleLineString, TopologyManagerPolicy,
+    TopologyManagerScope, Url, ValidBase64, ValidLinuxHostname,
 };
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 
 use self::de::deserialize_node_taints;
 use std::collections::HashMap;
 use std::convert::Infallible;
-use std::net::IpAddr;
 
 mod de;
 
@@ -93,7 +92,7 @@ pub struct KubernetesSettingsV1 {
     max_pods: u32,
     cluster_dns_ip: KubernetesClusterDnsIp,
     cluster_domain: DNSDomain,
-    node_ip: IpAddr,
+    node_ip: KubernetesNodeIp,
     pod_infra_container_image: SingleLineString,
     hostname_override: ValidLinuxHostname,
 }
