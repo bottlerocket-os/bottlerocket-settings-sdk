@@ -1315,6 +1315,128 @@ mod test_cluster_dns_ip {
     }
 }
 
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
+/// KubernetesNodeIp represents the --node-ip setting for kubelet.
+///
+/// This model allows the value to be either a single IP (IPv4 or IPv6) or a
+/// list of IPs for dual-stack configurations (one IPv4 and one IPv6).
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum KubernetesNodeIp {
+    Scalar(IpAddr),
+    Vector(Vec<IpAddr>),
+}
+
+impl KubernetesNodeIp {
+    pub fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a IpAddr> + 'a> {
+        match self {
+            Self::Scalar(inner) => Box::new(std::iter::once(inner)),
+            Self::Vector(inner) => Box::new(inner.iter()),
+        }
+    }
+}
+
+impl IntoIterator for KubernetesNodeIp {
+    type Item = IpAddr;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::Scalar(inner) => vec![inner],
+            Self::Vector(inner) => inner,
+        }
+        .into_iter()
+    }
+}
+
+#[cfg(test)]
+mod test_kubernetes_node_ip {
+    use super::KubernetesNodeIp;
+    use std::net::IpAddr;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_parse_single_ipv4() {
+        assert_eq!(
+            serde_json::from_str::<KubernetesNodeIp>(r#""192.168.1.1""#).unwrap(),
+            KubernetesNodeIp::Scalar(IpAddr::from_str("192.168.1.1").unwrap())
+        );
+    }
+
+    #[test]
+    fn test_parse_single_ipv6() {
+        assert_eq!(
+            serde_json::from_str::<KubernetesNodeIp>(r#""2001:db8::1""#).unwrap(),
+            KubernetesNodeIp::Scalar(IpAddr::from_str("2001:db8::1").unwrap())
+        );
+    }
+
+    #[test]
+    fn test_parse_dual_stack_list() {
+        let node_ip =
+            serde_json::from_str::<KubernetesNodeIp>(r#"["192.168.1.1", "2001:db8::1"]"#).unwrap();
+        assert_eq!(
+            node_ip,
+            KubernetesNodeIp::Vector(vec![
+                IpAddr::from_str("192.168.1.1").unwrap(),
+                IpAddr::from_str("2001:db8::1").unwrap()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_parse_dual_stack_reverse_order() {
+        let node_ip =
+            serde_json::from_str::<KubernetesNodeIp>(r#"["2001:db8::1", "192.168.1.1"]"#).unwrap();
+        assert_eq!(
+            node_ip,
+            KubernetesNodeIp::Vector(vec![
+                IpAddr::from_str("2001:db8::1").unwrap(),
+                IpAddr::from_str("192.168.1.1").unwrap()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_iter_scalar() {
+        let node_ip = KubernetesNodeIp::Scalar(IpAddr::from_str("192.168.1.1").unwrap());
+        assert_eq!(
+            node_ip.iter().collect::<Vec<&IpAddr>>(),
+            vec![&IpAddr::from_str("192.168.1.1").unwrap()]
+        );
+    }
+
+    #[test]
+    fn test_iter_vector() {
+        let node_ip = KubernetesNodeIp::Vector(vec![
+            IpAddr::from_str("192.168.1.1").unwrap(),
+            IpAddr::from_str("2001:db8::1").unwrap(),
+        ]);
+        assert_eq!(
+            node_ip.iter().collect::<Vec<&IpAddr>>(),
+            vec![
+                &IpAddr::from_str("192.168.1.1").unwrap(),
+                &IpAddr::from_str("2001:db8::1").unwrap()
+            ]
+        );
+    }
+
+    #[test]
+    fn test_serde_round_trip_scalar() {
+        let json = r#""192.168.1.1""#;
+        let node_ip: KubernetesNodeIp = serde_json::from_str(json).unwrap();
+        assert_eq!(serde_json::to_string(&node_ip).unwrap(), json);
+    }
+
+    #[test]
+    fn test_serde_round_trip_vector() {
+        let json = r#"["192.168.1.1","2001:db8::1"]"#;
+        let node_ip: KubernetesNodeIp = serde_json::from_str(json).unwrap();
+        assert_eq!(serde_json::to_string(&node_ip).unwrap(), json);
+    }
+}
+
 type EnvVarMap = HashMap<SingleLineString, SingleLineString>;
 
 /// CredentialProvider contains the settings for a credential provider for use
