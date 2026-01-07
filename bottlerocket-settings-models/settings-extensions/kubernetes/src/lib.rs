@@ -216,14 +216,10 @@ mod test {
 
 
     #[test]
-    fn test_fail_cgroup_v1_skip_serializing_if() {
-        let k8s = KubernetesSettingsV1 {
-            fail_cgroup_v1: None,
-            ..Default::default()
-        };
-        let json = serde_json::to_string(&k8s).unwrap();
-        assert!(!json.contains("fail_cgroup_v1"));
-        assert!(!json.contains("fail-cgroupv1"));
+    fn test_kubernetes_default_serialization() {
+        let k8s = KubernetesSettingsV1::default();
+        let serialized = serde_json::to_value(&k8s).expect("failed to serialize");
+        assert_eq!(serialized, serde_json::json!({}));
     }
 
     #[test]
