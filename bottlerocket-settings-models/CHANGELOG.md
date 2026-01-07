@@ -9,7 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - See [unreleased changes here]
 
-[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.17.0...HEAD
+[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.19.0...HEAD
+
+## [0.19.0] - 2026-01-07
+
+## Model Changes
+
+### Fixed
+
+- Fixed `fail-cgroup-v1` kubernetes setting serialization to skip when None ([#109])
+
+[#109]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/109
+
+[0.19.0]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.18.0...bottlerocket-settings-models-v0.19.0
+
+## [0.18.0] - 2026-01-05
+
+## Model Changes
+
+### Added
+
+- Added `fail-cgroup-v1` kubernetes setting ([#108])
+
+### Changed
+
+- Updated regex for `NvidiaGpuModel` validation ([#105])
+
+[#105]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/105
+[#108]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/108
+
+[0.18.0]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.17.0...bottlerocket-settings-models-v0.18.0
 
 ## [0.17.0] - 2025-11-05
 
