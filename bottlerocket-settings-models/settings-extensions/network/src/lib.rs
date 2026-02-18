@@ -10,6 +10,7 @@ struct NetworkSettingsV1 {
     hosts: EtcHostsEntries,
     https_proxy: Url,
     no_proxy: Vec<SingleLineString>,
+    disable_ipv6: Vec<SingleLineString>,
 }
 
 type Result<T> = std::result::Result<T, Infallible>;
@@ -55,6 +56,7 @@ mod test {
                 hosts: None,
                 https_proxy: None,
                 no_proxy: None,
+                disable_ipv6: None,
             }))
         )
     }
@@ -80,7 +82,36 @@ mod test {
                 ),
                 https_proxy: Some(Url::try_from("https://example.net").unwrap()),
                 no_proxy: Some(vec![SingleLineString::try_from("foo").unwrap()]),
+                disable_ipv6: None,
             }
         );
+    }
+
+    #[test]
+    fn test_serde_network_with_disable_ipv6() {
+        let test_json = r#"{
+            "disable-ipv6": ["eth0", "eth1"]
+        }"#;
+
+        let network: NetworkSettingsV1 = serde_json::from_str(test_json).unwrap();
+
+        assert_eq!(
+            network,
+            NetworkSettingsV1 {
+                hostname: None,
+                hosts: None,
+                https_proxy: None,
+                no_proxy: None,
+                disable_ipv6: Some(vec![
+                    SingleLineString::try_from("eth0").unwrap(),
+                    SingleLineString::try_from("eth1").unwrap(),
+                ]),
+            }
+        );
+
+        // Round-trip
+        let serialized = serde_json::to_string(&network).unwrap();
+        let deserialized: NetworkSettingsV1 = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(network, deserialized);
     }
 }
