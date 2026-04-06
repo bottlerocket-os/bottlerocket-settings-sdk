@@ -115,7 +115,7 @@ serde_plain = "1"
 snafu = "0.8"
 syn = { version = "2", default-features = false }
 test-case = "3"
-toml = "0.8"
+toml = "1.1"
 tracing = "0.1"
 url = "2"
 walkdir = "2"
