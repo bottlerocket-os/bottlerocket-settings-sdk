@@ -9,7 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - See [unreleased changes here]
 
-[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.26.0...HEAD
+[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.27.0...HEAD
+
+## [0.27.0] - 2026-08-13
+
+### Changed
+
+- Added `sysctl` back to `UKIKernelSettingsV1` so attestable variants support kernel sysctl configuration ([#145])
+
+[#145]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/145
+
+[0.27.0]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.26.0...bottlerocket-settings-models-v0.27.0
 
 ## [0.26.0] - 2026-08-12
 
