@@ -56,6 +56,8 @@ impl SettingsModel for KernelSettingsV1 {
 #[model(impl_default = true)]
 struct UKIKernelSettingsV1 {
     lockdown: Lockdown,
+    // Values are almost always a single line and often just an integer... but not always.
+    sysctl: HashMap<SysctlKey, String>,
 }
 
 impl SettingsModel for UKIKernelSettingsV1 {
@@ -206,12 +208,15 @@ mod test {
 
         assert_eq!(
             generated,
-            GenerateResult::Complete(UKIKernelSettingsV1 { lockdown: None })
+            GenerateResult::Complete(UKIKernelSettingsV1 {
+                lockdown: None,
+                sysctl: None
+            })
         )
     }
 
     #[test]
-    fn test_serde_uki_kernel() {
+    fn test_serde_uki_kernel_lockdown_only() {
         let test_json = r#"{"lockdown": "integrity"}"#;
         let kernel: UKIKernelSettingsV1 = serde_json::from_str(test_json).unwrap();
 
@@ -219,17 +224,45 @@ mod test {
             kernel,
             UKIKernelSettingsV1 {
                 lockdown: Some(Lockdown::try_from("integrity").unwrap()),
+                sysctl: None
+            }
+        );
+    }
+
+    #[test]
+    fn test_serde_uki_kernel_lockdown_sysctl() {
+        let test_json = r#"{"lockdown": "integrity"}"#;
+        let kernel: UKIKernelSettingsV1 = serde_json::from_str(test_json).unwrap();
+
+        assert_eq!(
+            kernel,
+            UKIKernelSettingsV1 {
+                lockdown: Some(Lockdown::try_from("integrity").unwrap()),
+                sysctl: None
+            }
+        );
+
+        // UKIKernelSettingsV1 intentionally only exposes `lockdown`; attempting to set
+        // `modules` or `sysctl` must fail to deserialize.
+        let test_json =
+            r#"{"lockdown": "integrity", "sysctl": { "key1": "value1", "key2": "value2" }}"#;
+        let kernel: UKIKernelSettingsV1 = serde_json::from_str(test_json).unwrap();
+
+        let mut sysctl = HashMap::new();
+        sysctl.insert(SysctlKey::try_from("key1").unwrap(), String::from("value1"));
+        sysctl.insert(SysctlKey::try_from("key2").unwrap(), String::from("value2"));
+
+        assert_eq!(
+            kernel,
+            UKIKernelSettingsV1 {
+                lockdown: Some(Lockdown::try_from("integrity").unwrap()),
+                sysctl: Some(sysctl)
             }
         );
     }
 
     #[test]
     fn test_uki_kernel_rejects_removed_fields() {
-        // UKIKernelSettingsV1 intentionally only exposes `lockdown`; attempting to set
-        // `modules` or `sysctl` must fail to deserialize.
-        let with_sysctl = r#"{"lockdown": "integrity", "sysctl": {"key": "value"}}"#;
-        assert!(serde_json::from_str::<UKIKernelSettingsV1>(with_sysctl).is_err());
-
         let with_modules =
             r#"{"lockdown": "integrity", "modules": {"foo": {"allowed": true, "autoload": true}}}"#;
         assert!(serde_json::from_str::<UKIKernelSettingsV1>(with_modules).is_err());
