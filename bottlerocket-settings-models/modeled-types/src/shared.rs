@@ -30,6 +30,7 @@ impl TryFrom<&str> for ValidBase64 {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "ValidBase64")?;
         base64::engine::general_purpose::STANDARD
             .decode(input)
             .context(error::InvalidBase64Snafu)?;
@@ -77,6 +78,7 @@ impl TryFrom<&str> for ValidBase64Json {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "ValidBase64Json")?;
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(input)
             .context(error::InvalidBase64Snafu)?;
@@ -132,6 +134,7 @@ impl TryFrom<&str> for SingleLineString {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "SingleLineString")?;
         // Rust does not treat all Unicode line terminators as starting a new line, so we check for
         // specific characters here, rather than just counting from lines().
         // https://en.wikipedia.org/wiki/Newline#Unicode
@@ -209,6 +212,7 @@ impl TryFrom<&str> for ValidLinuxHostname {
 
     #[allow(clippy::len_zero)]
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "ValidLinuxHostname")?;
         ensure!(
             VALID_LINUX_HOSTNAME.is_match(input),
             error::InvalidLinuxHostnameSnafu {
@@ -451,6 +455,7 @@ impl TryFrom<&str> for Identifier {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "Identifier")?;
         let valid_identifier = input
             .chars()
             .all(|c| (c.is_ascii() && c.is_alphanumeric()) || c == '-')
@@ -508,21 +513,26 @@ impl TryFrom<&str> for Url {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
-        if input.parse::<url::Url>().is_ok() {
-            return Ok(Url {
-                inner: input.to_string(),
-            });
-        } else {
-            // It's very common to specify URLs without a scheme, so we add one and see if that
-            // fixes parsing.
-            let prefixed = format!("http://{input}");
-            if prefixed.parse::<url::Url>().is_ok() {
+        // `url::Url::parse` silently strips ASCII tab/CR/LF from its input
+        // copy, so a raw newline would validate; reject control chars first.
+        crate::reject_control_chars(input, "Url")?;
+
+        let first_err = match input.parse::<url::Url>() {
+            Ok(parsed) => {
                 return Ok(Url {
-                    inner: input.to_string(),
+                    inner: parsed.to_string(),
                 });
             }
+            Err(e) => e,
+        };
+        // Scheme-less inputs like `example.com` are common; retry with `http://`.
+        let prefixed = format!("http://{input}");
+        if let Ok(parsed) = prefixed.parse::<url::Url>() {
+            return Ok(Url {
+                inner: parsed.to_string(),
+            });
         }
-        error::InvalidUrlSnafu { input }.fail()
+        Err(first_err).context(error::InvalidUrlSnafu { input })
     }
 }
 
@@ -558,8 +568,153 @@ mod test_url {
 
     #[test]
     fn bad_urls() {
-        for err in &["how are you", "weird@"] {
+        for err in &["how are you", "weird@", "not a url"] {
             Url::try_from(*err).unwrap_err();
+        }
+    }
+
+    #[test]
+    fn canonicalizes_scheme_present() {
+        let cases = [
+            ("  https://example.com/path  ", "https://example.com/path"),
+            ("https://example.com", "https://example.com/"),
+        ];
+        for (input, want) in cases {
+            let got =
+                Url::try_from(input).unwrap_or_else(|e| panic!("expected {input:?} to parse: {e}"));
+            let stored: &str = got.as_ref();
+            assert_eq!(
+                stored, want,
+                "canonicalization mismatch for input {input:?}"
+            );
+            assert!(
+                !stored.contains(|c: char| c.is_control() || c == ' '),
+                "control/whitespace survived canonicalization: {stored:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_control_characters() {
+        let payloads = [
+            "unix:///run/containerd/containerd.sock\nother",
+            "https://example.com/path\n",
+            "https://example.com/path\r\n",
+            "https://example.com/path\t",
+            "https://example.com/path\x00",
+            "https://example.com/path\x1b",
+            "https://example.com/path\x7f",
+        ];
+        for payload in payloads {
+            let err = Url::try_from(payload).unwrap_err();
+            let msg = err.to_string();
+            assert!(
+                msg.contains("control character"),
+                "expected control-char rejection for {payload:?}, got: {msg}"
+            );
+        }
+    }
+
+    #[test]
+    fn canonicalizes_scheme_less() {
+        let cases = [
+            ("example.com", "http://example.com/"),
+            ("example.com/path", "http://example.com/path"),
+            (".internal", "http://.internal/"),
+        ];
+        for (input, want) in cases {
+            let got =
+                Url::try_from(input).unwrap_or_else(|e| panic!("expected {input:?} to parse: {e}"));
+            let stored: &str = got.as_ref();
+            assert_eq!(
+                stored, want,
+                "canonicalization mismatch for scheme-less input {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn deserialize_rejects_control_characters() {
+        let json = r#""https://mirror.example.com/path\n""#;
+        let err = serde_json::from_str::<Url>(json).unwrap_err();
+        assert!(
+            err.to_string().contains("control character"),
+            "expected control-char rejection through serde, got: {err}"
+        );
+    }
+}
+
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
+/// A container image reference (e.g. `public.ecr.aws/eks/foo:1.0.0`).
+///
+/// Unlike [`Url`], this type does not parse or rewrite the input; the
+/// stored value round-trips byte-for-byte. Rejects empty strings,
+/// whitespace, and non-ASCII / control characters. Full OCI-spec
+/// validation is left to the runtime that pulls the image.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct OciImageRef {
+    inner: String,
+}
+
+impl TryFrom<&str> for OciImageRef {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "OciImageRef")?;
+        if input.is_empty() {
+            return error::InvalidOciImageRefSnafu {
+                input,
+                msg: "must not be empty",
+            }
+            .fail();
+        }
+        if let Some(bad) = input.chars().find(|c| c.is_whitespace() || !c.is_ascii()) {
+            return error::InvalidOciImageRefSnafu {
+                input,
+                msg: format!("contains disallowed character {bad:?}"),
+            }
+            .fail();
+        }
+        Ok(OciImageRef {
+            inner: input.to_string(),
+        })
+    }
+}
+
+string_impls_for!(OciImageRef, "OciImageRef");
+
+#[cfg(test)]
+mod test_oci_image_ref {
+    use super::OciImageRef;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn accepts_common_refs() {
+        for ok in &[
+            "public.ecr.aws/eks/eks-anywhere/foo:1.0.0",
+            "docker.io/library/nginx:latest",
+            "uri.to.container.in.oci-compatible-registry.example.com/foo:1.0.0",
+            "public.ecr.aws/example/example",
+            "registry.local:5000/team/img@sha256:abc123",
+            "localhost/simple",
+        ] {
+            let r = OciImageRef::try_from(*ok).unwrap();
+            let stored: &str = r.as_ref();
+            assert_eq!(stored, *ok, "OCI ref must round-trip byte-for-byte");
+        }
+    }
+
+    #[test]
+    fn rejects_bad_refs() {
+        for bad in &[
+            "",
+            "has space/name:tag",
+            "line\nbreak/name",
+            "tab\there/name",
+            "unicode/日本語",
+        ] {
+            OciImageRef::try_from(*bad).unwrap_err();
         }
     }
 }
@@ -578,6 +733,7 @@ impl TryFrom<&str> for FriendlyVersion {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "FriendlyVersion")?;
         if input == "latest" {
             return Ok(FriendlyVersion {
                 inner: input.to_string(),
@@ -684,6 +840,7 @@ impl TryFrom<&str> for DNSDomain {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "DNSDomain")?;
         ensure!(
             !input.starts_with('.'),
             error::InvalidDomainNameSnafu {
@@ -759,6 +916,7 @@ impl TryFrom<&str> for SysctlKey {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "SysctlKey")?;
         // Basic directory traversal checks; corndog also checks
         ensure!(
             !input.contains(".."),
@@ -864,6 +1022,7 @@ impl TryFrom<&str> for BootConfigKey {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "BootConfigKey")?;
         // Each individual keyword must be valid
         let valid_key = input.split('.').all(|keyword| {
             !keyword.is_empty()
@@ -929,6 +1088,7 @@ impl TryFrom<&str> for BootConfigValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "BootConfigValue")?;
         ensure!(
             input.chars().all(|c| c.is_ascii() && !c.is_ascii_control())
             // Values containing both single quotes and double quotes are inherently invalid since quotes
@@ -986,6 +1146,7 @@ impl TryFrom<&str> for Lockdown {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "Lockdown")?;
         ensure!(
             matches!(input, "none" | "integrity" | "confidentiality"),
             error::InvalidLockdownSnafu { input }
@@ -1083,6 +1244,7 @@ impl TryFrom<&str> for BootstrapMode {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "BootstrapMode")?;
         ensure!(
             matches!(input, "off" | "once" | "always"),
             error::InvalidBootstrapModeSnafu { input }
@@ -1226,6 +1388,7 @@ impl TryFrom<&str> for KmodKey {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KmodKey")?;
         // The kernel allows modules to have any name that's a valid filename,
         // but real module names seem to be limited to this character set.
         let valid_key = input
@@ -1327,6 +1490,7 @@ impl TryFrom<&str> for KernelCpuSetValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KernelCpuSetValue")?;
         ensure!(
             !input.is_empty(),
             error::InvalidKernelCpuSetValueSnafu { input }

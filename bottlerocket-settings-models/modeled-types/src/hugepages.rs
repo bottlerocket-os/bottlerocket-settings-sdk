@@ -55,6 +55,7 @@ impl TryFrom<&str> for HugepageAllocation {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "HugepageAllocation")?;
         ensure!(
             HUGEPAGE_ALLOCATION_RE.is_match(input),
             error::InvalidHugepageAllocationSnafu { input }
@@ -118,6 +119,7 @@ impl TryFrom<&str> for HugepageSize {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "HugepageSize")?;
         let bytes = HugepageSize::parse(input).context(error::InvalidHugepageSizeSnafu {
             input,
             msg: "must be a positive integer with an IEC binary unit (Ki, Mi, Gi, Ti) \

@@ -47,6 +47,7 @@ impl TryFrom<&str> for KubernetesName {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesName")?;
         ensure!(
             KUBERNETES_NAME.is_match(input),
             error::PatternSnafu {
@@ -113,6 +114,7 @@ impl TryFrom<&str> for KubernetesLabelKey {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesLabelKey")?;
         ensure!(
             KUBERNETES_LABEL_KEY.is_match(input),
             error::BigPatternSnafu {
@@ -189,6 +191,7 @@ impl TryFrom<&str> for KubernetesLabelValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesLabelValue")?;
         ensure!(
             KUBERNETES_LABEL_VALUE.is_match(input),
             error::BigPatternSnafu {
@@ -262,6 +265,7 @@ impl TryFrom<&str> for KubernetesTaintValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesTaintValue")?;
         ensure!(
             KUBERNETES_TAINT_VALUE.is_match(input),
             error::BigPatternSnafu {
@@ -335,6 +339,7 @@ impl TryFrom<&str> for KubernetesClusterName {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesClusterName")?;
         ensure!(
             !input.is_empty(),
             error::InvalidClusterNameSnafu {
@@ -395,6 +400,7 @@ impl TryFrom<&str> for KubernetesAuthenticationMode {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "KubernetesAuthenticationMode")?;
         ensure!(
             matches!(input, "aws" | "tls"),
             error::InvalidAuthenticationModeSnafu { input }
@@ -446,6 +452,7 @@ impl TryFrom<&str> for KubernetesBootstrapToken {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesBootstrapToken")?;
         ensure!(
             KUBERNETES_BOOTSTRAP_TOKEN.is_match(input),
             error::PatternSnafu {
@@ -560,6 +567,7 @@ impl TryFrom<&str> for KubernetesThresholdValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesThresholdValue")?;
         if let Some(stripped) = input.strip_suffix('%') {
             let input_f32 = stripped
                 .parse::<f32>()
@@ -641,6 +649,7 @@ impl TryFrom<&str> for KubernetesReservedResourceKey {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesReservedResourceKey")?;
         serde_plain::from_str::<ReservedResources>(input).context(
             error::InvalidPlainValueSnafu {
                 field: "Reserved sources key",
@@ -690,6 +699,7 @@ impl TryFrom<&str> for KubernetesQuantityValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesQuantityValue")?;
         ensure!(
             KUBERNETES_QUANTITY.is_match(input),
             error::PatternSnafu {
@@ -751,6 +761,7 @@ impl TryFrom<&str> for KubernetesCloudProvider {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, error::Error> {
+        crate::reject_control_chars(input, "KubernetesCloudProvider")?;
         // Kubelet expects the empty string to be double-quoted when be passed to `--cloud-provider`
         let cloud_provider = if input.is_empty() { "\"\"" } else { input };
         ensure!(
@@ -810,6 +821,7 @@ impl TryFrom<&str> for CpuManagerPolicy {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "CpuManagerPolicy")?;
         serde_plain::from_str::<ValidCpuManagerPolicy>(input)
             .context(error::InvalidCpuManagerPolicySnafu { input })?;
         Ok(CpuManagerPolicy {
@@ -858,6 +870,7 @@ impl TryFrom<&str> for KubernetesDurationValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "KubernetesDurationValue")?;
         ensure!(
             !input.is_empty(),
             error::InvalidKubernetesDurationValueSnafu { input }
@@ -932,6 +945,7 @@ impl TryFrom<&str> for TopologyManagerScope {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "TopologyManagerScope")?;
         serde_plain::from_str::<ValidTopologyManagerScope>(input)
             .context(error::InvalidTopologyManagerScopeSnafu { input })?;
         Ok(TopologyManagerScope {
@@ -985,6 +999,7 @@ impl TryFrom<&str> for TopologyManagerPolicy {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "TopologyManagerPolicy")?;
         serde_plain::from_str::<ValidTopologyManagerPolicy>(input)
             .context(error::InvalidTopologyManagerPolicySnafu { input })?;
         Ok(TopologyManagerPolicy {
@@ -1793,6 +1808,7 @@ impl TryFrom<&str> for NvidiaGpuModel {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "NvidiaGpuModel")?;
         ensure!(
             NVIDIAGPU_NAME.is_match(input),
             error::PatternSnafu {
@@ -1823,6 +1839,7 @@ impl TryFrom<&str> for MigProfile {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "MigProfile")?;
         let slice_format = matches!(input, "1" | "2" | "3" | "4" | "7");
 
         ensure!(

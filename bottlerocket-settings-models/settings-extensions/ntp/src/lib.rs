@@ -73,7 +73,10 @@ mod test {
 
     #[test]
     fn test_serde_ntp() {
+        // Bare-authority URLs canonicalize with a trailing slash.
         let test_json = r#"{"time-servers":["https://example.net","http://www.example.com"]}"#;
+        let canonical_json =
+            r#"{"time-servers":["https://example.net/","http://www.example.com/"]}"#;
 
         let ntp: NtpSettingsV1 = serde_json::from_str(test_json).unwrap();
         assert_eq!(
@@ -85,12 +88,13 @@ mod test {
         );
 
         let results = serde_json::to_string(&ntp).unwrap();
-        assert_eq!(results, test_json);
+        assert_eq!(results, canonical_json);
     }
 
     #[test]
     fn test_options_ntp() {
         let test_json = r#"{"time-servers":["https://example.net","http://www.example.com"],"options":["minpoll","1","maxpoll","2"]}"#;
+        let canonical_json = r#"{"time-servers":["https://example.net/","http://www.example.com/"],"options":["minpoll","1","maxpoll","2"]}"#;
 
         let ntp: NtpSettingsV1 = serde_json::from_str(test_json).unwrap();
         assert_eq!(
@@ -99,6 +103,6 @@ mod test {
         );
 
         let results = serde_json::to_string(&ntp).unwrap();
-        assert_eq!(results, test_json);
+        assert_eq!(results, canonical_json);
     }
 }
