@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- See [unreleased changes here]
+## Model Changes
+
+### Added
+
+- Added `RegistryMirrorCapabilityV1` enum (`pull`, `resolve`, `push`) and optional `capabilities` field to `RegistryMirrorV1`, allowing per-mirror capability configuration for containerd registry mirrors
 
 [unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.27.0...HEAD
 
