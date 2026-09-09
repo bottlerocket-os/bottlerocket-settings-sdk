@@ -112,6 +112,7 @@ impl TryFrom<&str> for ECSAttributeValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "ECSAttributeValue")?;
         ensure!(
             ECS_ATTRIBUTE_VALUE.is_match(input),
             error::BigPatternSnafu {
@@ -259,6 +260,7 @@ impl TryFrom<&str> for ECSDurationValue {
     type Error = error::Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "ECSDurationValue")?;
         ensure!(
             !input.is_empty() && ECS_DURATION_VALUE.is_match(input),
             error::InvalidECSDurationValueSnafu { input }

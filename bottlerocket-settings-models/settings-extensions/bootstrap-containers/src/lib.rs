@@ -1,6 +1,8 @@
 //! Settings related to bootstrap containers.
 use bottlerocket_model_derive::model;
-use bottlerocket_modeled_types::{BootstrapMode, Identifier, SingleLineString, Url, ValidBase64};
+use bottlerocket_modeled_types::{
+    BootstrapMode, Identifier, OciImageRef, SingleLineString, ValidBase64,
+};
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{collections::HashMap, convert::Infallible};
@@ -35,7 +37,7 @@ impl<'de> Deserialize<'de> for BootstrapContainersSettingsV1 {
 
 #[model(impl_default = true)]
 struct BootstrapContainer {
-    source: Url,
+    source: OciImageRef,
     mode: BootstrapMode,
     user_data: ValidBase64,
     essential: bool,
@@ -112,7 +114,7 @@ mod test {
             Identifier::try_from("mybootstrap").unwrap(),
             BootstrapContainer {
                 source: Some(
-                    Url::try_from(
+                    OciImageRef::try_from(
                         "uri.to.container.in.oci-compatible-registry.example.com/foo:1.0.0",
                     )
                     .unwrap(),

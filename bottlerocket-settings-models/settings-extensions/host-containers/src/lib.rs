@@ -1,6 +1,6 @@
 //! host-containers settings allow users to configure multiple host containers
 use bottlerocket_model_derive::model;
-use bottlerocket_modeled_types::{Identifier, SingleLineString, Url, ValidBase64};
+use bottlerocket_modeled_types::{Identifier, OciImageRef, SingleLineString, ValidBase64};
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
@@ -34,7 +34,7 @@ impl<'de> Deserialize<'de> for HostContainersSettingsV1 {
 
 #[model(impl_default = true)]
 struct HostContainer {
-    source: Url,
+    source: OciImageRef,
     enabled: bool,
     superpowered: bool,
     user_data: ValidBase64,
@@ -105,7 +105,7 @@ mod test {
         expected_host_containers.insert(
             Identifier::try_from("foo").unwrap(),
             HostContainer {
-                source: Some(Url::try_from("public.ecr.aws/example/example").unwrap()),
+                source: Some(OciImageRef::try_from("public.ecr.aws/example/example").unwrap()),
                 enabled: Some(true),
                 superpowered: Some(true),
                 user_data: Some(ValidBase64::try_from("Zm9vCg==").unwrap()),

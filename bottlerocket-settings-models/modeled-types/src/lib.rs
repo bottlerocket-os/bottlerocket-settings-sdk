@@ -51,8 +51,21 @@ pub mod error {
         ))]
         InvalidKmodKey { input: String },
 
-        #[snafu(display("Given invalid URL '{}'", input))]
-        InvalidUrl { input: String },
+        #[snafu(display("Given invalid URL '{input}': {source}"))]
+        InvalidUrl {
+            input: String,
+            source: url::ParseError,
+        },
+
+        #[snafu(display("Invalid OCI image reference '{}': {}", input, msg))]
+        InvalidOciImageRef { input: String, msg: String },
+
+        #[snafu(display(
+            "Value for '{}' contains a control character (byte {:#04x}) and cannot be stored",
+            kind,
+            byte
+        ))]
+        ContainsControlChar { kind: &'static str, byte: u32 },
 
         #[snafu(display("Invalid version string '{}'", input))]
         InvalidVersion { input: String },
@@ -206,6 +219,57 @@ macro_rules! require {
             return Err($err);
         }
     };
+}
+
+#[cfg(test)]
+mod test_reject_control_chars {
+    use super::reject_control_chars;
+
+    #[test]
+    fn accepts_plain_ascii() {
+        assert!(reject_control_chars("hello-world", "X").is_ok());
+        assert!(reject_control_chars("", "X").is_ok());
+        assert!(reject_control_chars("path with spaces", "X").is_ok());
+        assert!(reject_control_chars("unicode 日本語", "X").is_ok());
+    }
+
+    #[test]
+    fn rejects_every_c0_and_c1_control() {
+        for b in (0u8..=0x1F).chain(std::iter::once(0x7Fu8)) {
+            let s = format!("prefix{}suffix", b as char);
+            let err = reject_control_chars(&s, "X").unwrap_err();
+            assert!(
+                err.to_string().contains("control character"),
+                "byte {b:#04x} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_unicode_line_and_paragraph_separators() {
+        for c in ['\u{2028}', '\u{2029}', '\u{0085}'] {
+            let s = format!("prefix{c}suffix");
+            reject_control_chars(&s, "X").unwrap_err();
+        }
+    }
+}
+
+/// Rejects any input containing an ASCII or Unicode control character, or
+/// U+2028 / U+2029. Called at the top of every `TryFrom<&str>` for a
+/// single-line modeled type; multi-line types (`PemCertificateString`,
+/// `EtcHostsEntries`) skip it.
+pub(crate) fn reject_control_chars(input: &str, kind: &'static str) -> Result<(), error::Error> {
+    let bad = input
+        .chars()
+        .find(|c| c.is_control() || matches!(*c, '\u{2028}' | '\u{2029}'));
+    if let Some(c) = bad {
+        return error::ContainsControlCharSnafu {
+            kind,
+            byte: c as u32,
+        }
+        .fail();
+    }
+    Ok(())
 }
 
 // Must be after macro definition
