@@ -3,7 +3,7 @@ use bottlerocket_scalar_derive::Scalar;
 use bottlerocket_string_impls_for::string_impls_for;
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error as _, Deserialize, Deserializer, Serialize};
 use snafu::{ensure, OptionExt};
 use std::collections::HashMap;
 
@@ -25,8 +25,51 @@ pub struct HugepagesSettings {
 pub struct HugepagesStatic {
     #[serde(default)]
     pub essential: bool,
-    #[serde(flatten)]
+    #[serde(flatten, deserialize_with = "deserialize_hugepages_config")]
     pub hugepages_config: HashMap<HugepageSize, HugepageConfig>,
+}
+
+/// Deserializes the per-size huge page pools, rejecting sizes that are written
+/// differently but name the same page size.
+///
+/// `HugepageSize` keeps the string it was given, so `2Mi` and `2048Ki` are
+/// distinct keys in the map even though both resolve to 2048 kiB. Consumers
+/// address a pool by its size in kibibytes -- corndog writes to
+/// `/sys/kernel/mm/hugepages/hugepages-<size>kB/nr_hugepages` -- so a map
+/// holding both would have two counts for one pool, and whichever the consumer
+/// applied last would win. Rejecting the input is better than silently keeping
+/// one of the two counts.
+fn deserialize_hugepages_config<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<HugepageSize, HugepageConfig>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let hugepages_config = HashMap::<HugepageSize, HugepageConfig>::deserialize(deserializer)?;
+
+    // Keyed by size in kibibytes, so equivalent spellings collide here.
+    let mut seen: HashMap<u64, &HugepageSize> = HashMap::with_capacity(hugepages_config.len());
+    for size in hugepages_config.keys() {
+        // `HugepageSize` only exists if it parsed, so this cannot fail in practice.
+        let size_kib = size.as_kib().ok_or_else(|| {
+            D::Error::custom(format!(
+                "unable to determine the size of '{size}' in kibibytes"
+            ))
+        })?;
+
+        if let Some(existing) = seen.insert(size_kib, size) {
+            // The map iterates in an arbitrary order; sort so the message does
+            // not depend on which of the two was reached first.
+            let mut names = [existing.to_string(), size.to_string()];
+            names.sort();
+            return Err(D::Error::custom(format!(
+                "huge page sizes '{}' and '{}' both mean {} kiB; specify only one of them",
+                names[0], names[1], size_kib,
+            )));
+        }
+    }
+
+    Ok(hugepages_config)
 }
 
 /// HugepageConfig contains all the configurations related to 1 type of static hugepage.
@@ -361,6 +404,42 @@ mod test_hugepages_settings {
                 }
             )
         );
+    }
+
+    #[test]
+    fn equivalent_sizes_are_rejected() {
+        // Both keys mean 2048 kiB, so the two counts would fight over one pool.
+        let err = serde_json::from_str::<HugepagesSettings>(
+            r#"{"static": {"2Mi": {"count": "512"}, "2048Ki": {"count": "4"}}}"#,
+        )
+        .expect_err("expected equivalent huge page sizes to be rejected");
+
+        let message = err.to_string();
+        assert!(
+            message.contains("2048Ki") && message.contains("2Mi") && message.contains("2048 kiB"),
+            "error should name both sizes and the size they share, got: {message}"
+        );
+    }
+
+    #[test]
+    fn distinct_sizes_are_accepted() {
+        let settings: HugepagesSettings =
+            serde_json::from_str(r#"{"static": {"2Mi": {"count": "512"}, "1Gi": {"count": "4"}}}"#)
+                .unwrap();
+
+        let static_hugepages = settings
+            .static_hugepages
+            .as_ref()
+            .expect("static hugepages");
+        assert_eq!(static_hugepages.hugepages_config.len(), 2);
+        for (size, count) in [("2Mi", "512"), ("1Gi", "4")] {
+            let key = HugepageSize::try_from(size).unwrap();
+            let pool = static_hugepages
+                .hugepages_config
+                .get(&key)
+                .unwrap_or_else(|| panic!("{size} pool"));
+            assert_eq!(pool.count, count);
+        }
     }
 
     #[test]
