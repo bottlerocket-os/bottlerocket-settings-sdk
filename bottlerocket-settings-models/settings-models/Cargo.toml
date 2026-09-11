@@ -37,6 +37,7 @@ settings-extension-image-verifier-plugins.workspace = true
 settings-extension-kernel.workspace = true
 settings-extension-kubernetes.workspace = true
 settings-extension-kubelet-device-plugins.workspace = true
+settings-extension-kubelet-dra-drivers.workspace = true
 settings-extension-measurement.workspace = true
 settings-extension-metrics.workspace = true
 settings-extension-motd.workspace = true
