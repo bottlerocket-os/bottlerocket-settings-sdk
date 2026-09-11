@@ -1,7 +1,9 @@
 //! The kernel settings can be used to configure settings related to the kernel, e.g.
 //! kernel modules
 use bottlerocket_model_derive::model;
-use bottlerocket_modeled_types::{HugepagesSettings, KmodKey, Lockdown, SysctlKey};
+use bottlerocket_modeled_types::{
+    DriversSettings, HugepagesSettings, KmodKey, Lockdown, SysctlKey,
+};
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -13,6 +15,7 @@ struct KernelSettingsV1 {
     // Values are almost always a single line and often just an integer... but not always.
     sysctl: HashMap<SysctlKey, String>,
     hugepages: HugepagesSettings,
+    drivers: DriversSettings,
 }
 
 #[model]
@@ -89,7 +92,8 @@ impl SettingsModel for UKIKernelSettingsV1 {
 mod test {
     use super::*;
     use bottlerocket_modeled_types::{
-        HugepageAllocation, HugepageConfig, HugepageSize, HugepagesStatic, HugepagesTransparent,
+        DriversSettings, HugepageAllocation, HugepageConfig, HugepageSize, HugepagesStatic,
+        HugepagesTransparent, NvidiaDriverBranch, NvidiaDriverSettings,
         TransparentHugepageDefragPolicy, TransparentHugepagePolicy,
     };
 
@@ -104,6 +108,7 @@ mod test {
                 modules: None,
                 sysctl: None,
                 hugepages: None,
+                drivers: None,
             })
         )
     }
@@ -121,7 +126,8 @@ mod test {
                 "1Gi": {"count": "4"}
                 },
                 "transparent": {"enabled": "always", "defrag": "defer+madvise"}
-            }
+            },
+            "drivers": { "nvidia": { "branch": "lts" }  }
         }"#;
 
         let kernel: KernelSettingsV1 = serde_json::from_str(test_json).unwrap();
@@ -166,6 +172,12 @@ mod test {
             }),
         });
 
+        let drivers = Some(DriversSettings {
+            nvidia: Some(NvidiaDriverSettings {
+                branch: NvidiaDriverBranch::Lts,
+            }),
+        });
+
         assert_eq!(
             kernel,
             KernelSettingsV1 {
@@ -173,6 +185,7 @@ mod test {
                 modules,
                 sysctl,
                 hugepages,
+                drivers,
             }
         );
 

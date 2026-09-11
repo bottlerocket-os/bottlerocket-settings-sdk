@@ -209,12 +209,14 @@ macro_rules! require {
 }
 
 // Must be after macro definition
+mod drivers;
 mod ecs;
 mod hugepages;
 mod kubernetes;
 mod oci_defaults;
 mod shared;
 
+pub use drivers::*;
 pub use ecs::*;
 pub use hugepages::*;
 pub use kubernetes::*;
