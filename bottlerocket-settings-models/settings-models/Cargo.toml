@@ -48,5 +48,8 @@ settings-extension-oci-hooks.workspace = true
 settings-extension-pki.workspace = true
 settings-extension-updates.workspace = true
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [lints]
 workspace = true
