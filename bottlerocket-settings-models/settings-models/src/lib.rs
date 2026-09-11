@@ -39,6 +39,7 @@ pub use settings_extension_host_containers::{self, HostContainersSettingsV1};
 pub use settings_extension_image_verifier_plugins::{self, ImageVerifierPluginsSettingsV1};
 pub use settings_extension_kernel::{self, KernelSettingsV1, UKIKernelSettingsV1};
 pub use settings_extension_kubelet_device_plugins::{self, KubeletDevicePluginsV1};
+pub use settings_extension_kubelet_dra_drivers::{self, KubeletDraDriversV1};
 pub use settings_extension_kubernetes::{self, KubernetesSettingsV1};
 pub use settings_extension_measurement::{self, MeasurementSettingsV1};
 pub use settings_extension_metrics::{self, MetricsSettingsV1};

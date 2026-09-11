@@ -34,6 +34,7 @@ members = [
     "bottlerocket-settings-models/settings-extensions/kernel",
     "bottlerocket-settings-models/settings-extensions/kubernetes",
     "bottlerocket-settings-models/settings-extensions/kubelet-device-plugins",
+    "bottlerocket-settings-models/settings-extensions/kubelet-dra-drivers",
     "bottlerocket-settings-models/settings-extensions/metrics",
     "bottlerocket-settings-models/settings-extensions/motd",
     "bottlerocket-settings-models/settings-extensions/network",
@@ -81,6 +82,7 @@ settings-extension-image-verifier-plugins = { path = "./bottlerocket-settings-mo
 settings-extension-kernel = { path = "./bottlerocket-settings-models/settings-extensions/kernel", version = "0.2" }
 settings-extension-kubernetes = { path = "./bottlerocket-settings-models/settings-extensions/kubernetes", version = "0.11" }
 settings-extension-kubelet-device-plugins = { path = "./bottlerocket-settings-models/settings-extensions/kubelet-device-plugins", version = "0.4" }
+settings-extension-kubelet-dra-drivers = { path = "./bottlerocket-settings-models/settings-extensions/kubelet-dra-drivers", version = "0.1" }
 settings-extension-measurement = { path = "./bottlerocket-settings-models/settings-extensions/measurement", version = "0.1" }
 settings-extension-metrics = { path = "./bottlerocket-settings-models/settings-extensions/metrics", version = "0.1" }
 settings-extension-motd = { path = "./bottlerocket-settings-models/settings-extensions/motd", version = "0.1" }

@@ -9,7 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - See [unreleased changes here]
 
-[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.27.0...HEAD
+[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.28.0...HEAD
+
+## [0.28.0] - 2026-09-11
+
+### Changed
+
+- Added `settings.kubelet-dra-drivers.nvidia.enabled` to toggle the NVIDIA GPU DRA driver ([#148])
+
+[#148]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/148
+
+[0.28.0]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.27.0...bottlerocket-settings-models-v0.28.0
 
 ## [0.27.0] - 2026-09-02
 

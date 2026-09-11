@@ -1,6 +1,6 @@
 [package]
 name = "bottlerocket-settings-models"
-version = "0.27.0"
+version = "0.28.0"
 authors = ["Tom Kirchner <tjk@amazon.com>"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
@@ -37,6 +37,7 @@ settings-extension-image-verifier-plugins.workspace = true
 settings-extension-kernel.workspace = true
 settings-extension-kubernetes.workspace = true
 settings-extension-kubelet-device-plugins.workspace = true
+settings-extension-kubelet-dra-drivers.workspace = true
 settings-extension-measurement.workspace = true
 settings-extension-metrics.workspace = true
 settings-extension-motd.workspace = true
