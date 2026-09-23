@@ -9,7 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - See [unreleased changes here]
 
-[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.28.0...HEAD
+[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.30.0...HEAD
+
+## [0.30.0] - 2026-09-23
+
+### Added
+
+- Added support for named per-server NTP configuration and configurable chrony logging ([#146])
+
+[#146]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/146
+
+[0.30.0]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.29.0...bottlerocket-settings-models-v0.30.0
 
 ## [0.29.0] - 2026-09-17
 
