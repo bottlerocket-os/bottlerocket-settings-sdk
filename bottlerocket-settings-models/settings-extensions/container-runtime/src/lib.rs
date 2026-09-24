@@ -7,6 +7,7 @@ use std::convert::Infallible;
 
 #[model(impl_default = true)]
 pub struct ContainerRuntimeSettingsV1 {
+    log_level: ContainerdLogLevel,
     max_container_log_line_size: i32,
     max_concurrent_downloads: i32,
     max_concurrent_unpacks: i32,
@@ -20,6 +21,20 @@ pub struct ContainerRuntimeSettingsV1 {
     enable_unprivileged_ports: bool,
     enable_unprivileged_icmp: bool,
     snapshotter: Snapshotter,
+}
+
+/// Log levels supported by containerd (logrus-based).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum ContainerdLogLevel {
+    Trace,
+    Debug,
+    #[default]
+    Info,
+    Warn,
+    Error,
+    Fatal,
+    Panic,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -70,6 +85,7 @@ mod test {
         assert_eq!(
             ContainerRuntimeSettingsV1::generate(None, None),
             Ok(GenerateResult::Complete(ContainerRuntimeSettingsV1 {
+                log_level: None,
                 max_container_log_line_size: None,
                 max_concurrent_downloads: None,
                 max_concurrent_unpacks: None,
@@ -84,6 +100,7 @@ mod test {
     #[test]
     fn test_serde_container_runtime() {
         let test_json = json!({
+            "log-level": "debug",
             "max-container-log-line-size": 1024,
             "max-concurrent-downloads": 5,
             "max-concurrent-unpacks": 5,
@@ -101,6 +118,7 @@ mod test {
         assert_eq!(
             container_runtime_settings,
             ContainerRuntimeSettingsV1 {
+                log_level: Some(ContainerdLogLevel::Debug),
                 max_container_log_line_size: Some(1024),
                 max_concurrent_downloads: Some(5),
                 max_concurrent_unpacks: Some(5),
@@ -116,6 +134,7 @@ mod test {
             .unwrap();
 
         let expected_json = json!({
+            "log-level": "debug",
             "max-container-log-line-size": 1024,
             "max-concurrent-downloads": 5,
             "max-concurrent-unpacks": 5,
@@ -131,6 +150,7 @@ mod test {
     #[test]
     fn test_serde_container_runtime_alias() {
         let test_json = json!({
+            "log-level": "warn",
             "max-container-log-line-size": 2048,
             "max-concurrent-downloads": 10,
             "max-concurrent-unpacks": 3,
@@ -146,6 +166,7 @@ mod test {
         assert_eq!(
             container_runtime_settings,
             ContainerRuntimeSettingsV1 {
+                log_level: Some(ContainerdLogLevel::Warn),
                 max_container_log_line_size: Some(2048),
                 max_concurrent_downloads: Some(10),
                 max_concurrent_unpacks: Some(3),
@@ -170,5 +191,30 @@ mod test {
             container_runtime_settings.concurrent_download_chunk_size,
             None
         );
+    }
+
+    #[test]
+    fn test_log_level_all_variants() {
+        for (input, expected) in [
+            ("trace", ContainerdLogLevel::Trace),
+            ("debug", ContainerdLogLevel::Debug),
+            ("info", ContainerdLogLevel::Info),
+            ("warn", ContainerdLogLevel::Warn),
+            ("error", ContainerdLogLevel::Error),
+            ("fatal", ContainerdLogLevel::Fatal),
+            ("panic", ContainerdLogLevel::Panic),
+        ] {
+            let json_str = format!(r#"{{"log-level": "{}"}}"#, input);
+            let settings: ContainerRuntimeSettingsV1 = serde_json::from_str(&json_str).unwrap();
+            assert_eq!(settings.log_level, Some(expected));
+        }
+    }
+
+    #[test]
+    fn test_log_level_invalid() {
+        let json_str = r#"{"log-level": "invalid"}"#;
+        let result: std::result::Result<ContainerRuntimeSettingsV1, _> =
+            serde_json::from_str(json_str);
+        assert!(result.is_err());
     }
 }
