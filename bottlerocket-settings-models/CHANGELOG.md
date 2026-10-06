@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added `settings.kubelet-dra-drivers.net` for the network DRA driver (DRANET),
+  with `enabled`, `bind-address`, and `device-filter`
+
 - See [unreleased changes here]
 
 [unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.30.0...HEAD
