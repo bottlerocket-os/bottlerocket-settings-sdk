@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Support per-server NTP object lists while retaining URL-list input ([#157]).
+
+### Changed
+
+- Serialize complete named NTP input as an object list. Writes replace the entire
+  list and discard names. Incomplete named entries are rejected ([#157]).
+- Prepare settings-models 0.33.0 and settings-extension-ntp 0.3.0 for the added
+  public enum variants. The named map added in 0.30.0 ([#146]) is now input only.
+  No released Bottlerocket version pins a models release that contains it, so no
+  datastore holds named child keys and no migration is needed. A datastore
+  written by an unreleased build that pins 0.30.0 through 0.32.0 is not
+  supported.
+
 - See [unreleased changes here]
+
+[#157]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/157
 
 [unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.32.0...HEAD
 
