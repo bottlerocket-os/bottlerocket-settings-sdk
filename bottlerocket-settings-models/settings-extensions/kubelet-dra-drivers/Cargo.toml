@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 bottlerocket-model-derive.workspace = true
+bottlerocket-modeled-types.workspace = true
 bottlerocket-settings-sdk.workspace = true
 env_logger.workspace = true
 serde = { workspace = true, features = ["derive"] }
