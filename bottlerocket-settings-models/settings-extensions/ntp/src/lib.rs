@@ -10,11 +10,10 @@ use std::convert::Infallible;
 
 #[model(impl_default = true)]
 pub struct NtpSettingsV1 {
-    /// Time servers to sync with: either a plain list of URLs, or a map of named
-    /// servers each with their own config. See `NtpTimeServers`.
+    /// Time servers to sync with. See `NtpTimeServers` for the accepted forms.
     time_servers: NtpTimeServers,
     /// Extra chrony options applied to every server, used with the URL-list form.
-    /// With the named-server map, each server carries its own options instead.
+    /// Server objects carry their own options and do not inherit this setting.
     options: Vec<SingleLineString>,
     /// chrony log categories, rendered as a single `log` line
     /// (e.g. `["measurements","statistics"]` -> `log measurements statistics`).
@@ -35,7 +34,7 @@ impl SettingsModel for NtpSettingsV1 {
     }
 
     fn set(_current_value: Option<Self>, _target: Self) -> Result<()> {
-        // Anything that parses as time-servers (a URL list or a named map) is ok
+        // Anything that parses as one of the supported time-server forms is valid.
         Ok(())
     }
 
@@ -49,7 +48,7 @@ impl SettingsModel for NtpSettingsV1 {
     }
 
     fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<()> {
-        // Anything that parses as time-servers (a URL list or a named map) is ok
+        // Anything that parses as one of the supported time-server forms is valid.
         Ok(())
     }
 }
@@ -77,7 +76,7 @@ pub enum NtpDirective {
     Pool,
 }
 
-/// A single named time server. Chrony flags (prefer, minpoll, maxpoll, iburst,
+/// A single time server. Chrony flags (prefer, minpoll, maxpoll, iburst,
 /// ...) go in `options` as plain strings. Options render verbatim, so use chrony
 /// syntax without "=" (e.g. "minpoll 4", not "minpoll = 4").
 #[model(impl_default = true)]
@@ -90,26 +89,38 @@ pub struct NtpTimeServer {
 pub mod error {
     use snafu::Snafu;
 
-    /// Errors from parsing the `time-servers` value into one of the two accepted
-    /// shapes (a URL list or a named server map).
+    /// Errors from parsing the accepted `time-servers` representations.
     #[derive(Debug, Snafu)]
     #[snafu(visibility(pub(super)))]
     pub enum Error {
         #[snafu(display(
-            "time-servers must be a list of URLs or a map of named servers, got {kind}"
+            "time-servers must be a list of URLs, a list of server objects, or a map of named servers, got {kind}"
         ))]
         WrongType { kind: String },
 
         #[snafu(display("invalid time-servers URL list: {source}"))]
         InvalidUrlList { source: serde_json::Error },
 
+        #[snafu(display("time-servers list mixes URL strings and server objects"))]
+        MixedList,
+
+        #[snafu(display("invalid time-servers object list: {source}"))]
+        InvalidObjectList { source: serde_json::Error },
+
+        #[snafu(display("time-servers object at index {index} is missing address"))]
+        ObjectMissingAddress { index: usize },
+
         #[snafu(display("invalid time-servers named map: {source}"))]
         InvalidNamedMap { source: serde_json::Error },
+
+        #[snafu(display("time-servers named entry '{name}' is missing address"))]
+        NamedMissingAddress { name: String },
     }
 }
 
-/// The `time-servers` value accepts two forms, kept backwards compatible: a plain
-/// list of URLs, or a map of named servers each with their own config.
+/// The `time-servers` value accepts a legacy URL list and per-server object
+/// representations. Named maps remain accepted as a compatibility input and
+/// serialize as object lists, so all forms occupy one datastore leaf.
 ///
 /// Deserialization selects the form from the JSON value type, validates its
 /// contents, and reports a type-specific error for unsupported values.
@@ -118,8 +129,10 @@ pub mod error {
 pub enum NtpTimeServers {
     /// A plain list of server URLs.
     Legacy(Vec<Url>),
-    /// A map of named servers, each with its own address and options.
+    /// A compatibility input; serialization drops the names and writes a list.
     Named(HashMap<Identifier, NtpTimeServer>),
+    /// A list of server objects, each with its own address, directive and options.
+    Objects(Vec<NtpTimeServer>),
 }
 
 impl TryFrom<serde_json::Value> for NtpTimeServers {
@@ -127,12 +140,33 @@ impl TryFrom<serde_json::Value> for NtpTimeServers {
 
     fn try_from(value: serde_json::Value) -> std::result::Result<Self, Self::Error> {
         match value {
-            serde_json::Value::Array(_) => {
-                let list = serde_json::from_value(value).context(error::InvalidUrlListSnafu)?;
-                Ok(NtpTimeServers::Legacy(list))
+            serde_json::Value::Array(ref items) => {
+                let strings = items.iter().filter(|v| v.is_string()).count();
+                let objects = items.iter().filter(|v| v.is_object()).count();
+                if !items.is_empty() && strings > 0 && objects > 0 {
+                    return error::MixedListSnafu.fail();
+                }
+                if objects > 0 {
+                    let list: Vec<NtpTimeServer> =
+                        serde_json::from_value(value).context(error::InvalidObjectListSnafu)?;
+                    if let Some(index) = list.iter().position(|server| server.address.is_none()) {
+                        return error::ObjectMissingAddressSnafu { index }.fail();
+                    }
+                    Ok(NtpTimeServers::Objects(list))
+                } else {
+                    let list = serde_json::from_value(value).context(error::InvalidUrlListSnafu)?;
+                    Ok(NtpTimeServers::Legacy(list))
+                }
             }
             serde_json::Value::Object(_) => {
-                let map = serde_json::from_value(value).context(error::InvalidNamedMapSnafu)?;
+                let map: HashMap<Identifier, NtpTimeServer> =
+                    serde_json::from_value(value).context(error::InvalidNamedMapSnafu)?;
+                if let Some((name, _)) = map.iter().find(|(_, server)| server.address.is_none()) {
+                    return error::NamedMissingAddressSnafu {
+                        name: name.to_string(),
+                    }
+                    .fail();
+                }
                 Ok(NtpTimeServers::Named(map))
             }
             other => error::WrongTypeSnafu {
@@ -145,10 +179,20 @@ impl TryFrom<serde_json::Value> for NtpTimeServers {
 
 impl From<NtpTimeServers> for serde_json::Value {
     fn from(servers: NtpTimeServers) -> Self {
-        // Both variants contain values that can be represented as JSON.
+        // Every variant contains values that can be represented as JSON.
         let result = match servers {
             NtpTimeServers::Legacy(list) => serde_json::to_value(list),
-            NtpTimeServers::Named(map) => serde_json::to_value(map),
+            NtpTimeServers::Named(map) => {
+                let mut entries: Vec<_> = map.into_iter().collect();
+                entries.sort_by_key(|(name, _)| name.to_string());
+                serde_json::to_value(
+                    entries
+                        .into_iter()
+                        .map(|(_, server)| server)
+                        .collect::<Vec<_>>(),
+                )
+            }
+            NtpTimeServers::Objects(list) => serde_json::to_value(list),
         };
         result.expect("NtpTimeServers always serializes to JSON")
     }
@@ -233,7 +277,7 @@ mod test {
                     .unwrap();
                 assert_eq!(server.directive, Some(NtpDirective::Server));
             }
-            NtpTimeServers::Legacy(_) => panic!("named map misparsed as Legacy"),
+            _ => panic!("named map misparsed"),
         }
         assert_eq!(
             ntp.logging.clone().unwrap(),
@@ -241,7 +285,8 @@ mod test {
         );
 
         let results = serde_json::to_string(&ntp).unwrap();
-        assert_eq!(results, test_json);
+        let canonical_json = r#"{"time-servers":[{"address":"169.254.169.123","directive":"server","options":["iburst","prefer","minpoll 4","maxpoll 4"]}],"logging":["tracking"]}"#;
+        assert_eq!(results, canonical_json);
     }
 
     #[test]
@@ -281,9 +326,7 @@ mod test {
                     ])
                 );
             }
-            NtpTimeServers::Legacy(_) => {
-                panic!("a named map was misparsed as the Legacy list variant")
-            }
+            _ => panic!("a named map was misparsed"),
         }
     }
 
@@ -305,7 +348,7 @@ mod test {
         let err = serde_json::from_str::<NtpTimeServers>(r#""just-a-string""#).unwrap_err();
         let msg = err.to_string();
         assert!(
-            msg.contains("list of URLs or a map of named servers"),
+            msg.contains("list of URLs, a list of server objects, or a map of named servers"),
             "expected a clear shape error, got: {msg}"
         );
     }
@@ -333,5 +376,122 @@ mod test {
                 "control characters should be rejected: {input}"
             );
         }
+    }
+
+    #[test]
+    fn test_parses_object_list() {
+        let j = r#"[{"address":"169.254.169.123","directive":"server","options":["prefer","iburst","minpoll 4","maxpoll 4"]},{"address":"time.aws.com","directive":"pool","options":["iburst"]}]"#;
+        let p: NtpTimeServers = serde_json::from_str(j).unwrap();
+        assert!(matches!(p, NtpTimeServers::Objects(ref v) if v.len() == 2));
+        assert_eq!(serde_json::to_string(&p).unwrap(), j);
+    }
+
+    #[test]
+    fn test_empty_list_is_legacy() {
+        let p: NtpTimeServers = serde_json::from_str("[]").unwrap();
+        assert_eq!(p, NtpTimeServers::Legacy(vec![]));
+        assert_eq!(serde_json::to_string(&p).unwrap(), "[]");
+    }
+
+    #[test]
+    fn test_rejects_mixed_list() {
+        let j = r#"["time.aws.com",{"address":"169.254.169.123"}]"#;
+        let e = serde_json::from_str::<NtpTimeServers>(j)
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("mixes"));
+    }
+
+    #[test]
+    fn test_rejects_bad_object_entries() {
+        let e1 = serde_json::from_str::<NtpTimeServers>(r#"[{"address":"a b c"}]"#)
+            .unwrap_err()
+            .to_string();
+        let e2 = serde_json::from_str::<NtpTimeServers>(r#"[{"address":"x","directive":"bogus"}]"#)
+            .unwrap_err()
+            .to_string();
+        let e3 = serde_json::from_str::<NtpTimeServers>(
+            r#"[{"address":"x","options":["iburst\nserver evil"]}]"#,
+        )
+        .unwrap_err()
+        .to_string();
+        let e4 = serde_json::from_str::<NtpTimeServers>(r#"[1,2]"#)
+            .unwrap_err()
+            .to_string();
+        let e5 = serde_json::from_str::<NtpTimeServers>(r#"[{"directive":"pool"}]"#)
+            .unwrap_err()
+            .to_string();
+        assert!(!e1.is_empty() && !e2.is_empty() && !e3.is_empty() && !e4.is_empty());
+        assert!(e5.contains("missing address"));
+    }
+
+    #[test]
+    fn test_legacy_list_unchanged() {
+        let p: NtpTimeServers = serde_json::from_str(r#"["https://time.aws.com"]"#).unwrap();
+        assert!(matches!(p, NtpTimeServers::Legacy(_)));
+    }
+
+    #[test]
+    fn test_settings_with_object_list_and_options() {
+        let j = r#"{"time-servers":[{"address":"time.aws.com","directive":"pool","options":["iburst"]}],"options":["iburst"]}"#;
+        let n: NtpSettingsV1 = serde_json::from_str(j).unwrap();
+        assert!(matches!(n.time_servers, Some(NtpTimeServers::Objects(_))));
+    }
+
+    #[test]
+    fn named_input_serializes_as_an_ordered_object_list() {
+        let input =
+            r#"{"z":{"address":"z.example","directive":"pool"},"a":{"address":"a.example"}}"#;
+        let servers: NtpTimeServers = serde_json::from_str(input).unwrap();
+        assert_eq!(
+            serde_json::to_value(servers).unwrap(),
+            serde_json::json!([
+                {"address": "a.example"},
+                {"address": "z.example", "directive": "pool"}
+            ])
+        );
+        let empty: NtpTimeServers = serde_json::from_str("{}").unwrap();
+        assert_eq!(serde_json::to_value(empty).unwrap(), serde_json::json!([]));
+    }
+
+    #[test]
+    fn named_input_requires_complete_entries() {
+        let error =
+            serde_json::from_str::<NtpTimeServers>(r#"{"link-local":{"options":["iburst"]}}"#)
+                .unwrap_err()
+                .to_string();
+        assert!(error.contains("'link-local' is missing address"));
+    }
+
+    #[test]
+    fn user_data_arrays_of_tables_parse_as_object_lists() {
+        #[derive(Deserialize)]
+        struct UserData {
+            settings: Settings,
+        }
+        #[derive(Deserialize)]
+        struct Settings {
+            ntp: NtpSettingsV1,
+        }
+        let input = r#"
+            [[settings.ntp.time-servers]]
+            address = "169.254.169.123"
+            directive = "server"
+            options = ["prefer", "iburst", "minpoll 4", "maxpoll 4"]
+
+            [[settings.ntp.time-servers]]
+            address = "time.aws.com"
+            directive = "pool"
+            options = ["iburst"]
+        "#;
+        let data: UserData = toml::from_str(input).unwrap();
+        assert_eq!(
+            serde_json::to_value(data.settings.ntp).unwrap(),
+            serde_json::json!({"time-servers": [
+                {"address": "169.254.169.123", "directive": "server",
+                 "options": ["prefer", "iburst", "minpoll 4", "maxpoll 4"]},
+                {"address": "time.aws.com", "directive": "pool", "options": ["iburst"]}
+            ]})
+        );
     }
 }
