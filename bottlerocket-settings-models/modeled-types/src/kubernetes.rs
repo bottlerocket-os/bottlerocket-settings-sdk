@@ -1859,6 +1859,36 @@ impl TryFrom<&str> for MigProfile {
 
 string_impls_for!(MigProfile, "MigProfile");
 
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
+/// DranetAdvertisedDevices selects which network devices the network DRA driver
+/// (DRANET) advertises as allocatable. `efa` advertises only Elastic Fabric
+/// Adapter devices.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DranetAdvertisedDevices {
+    Efa,
+}
+
+#[cfg(test)]
+mod test_dranet_advertised_devices {
+    use super::*;
+
+    #[test]
+    fn advertised_devices_efa() {
+        let json = r#""efa""#;
+        let value: DranetAdvertisedDevices = serde_json::from_str(json).unwrap();
+        assert_eq!(value, DranetAdvertisedDevices::Efa);
+        assert_eq!(serde_json::to_string(&value).unwrap(), json);
+    }
+
+    #[test]
+    fn advertised_devices_invalid() {
+        assert!(serde_json::from_str::<DranetAdvertisedDevices>(r#""all""#).is_err());
+        assert!(serde_json::from_str::<DranetAdvertisedDevices>(r#""ena""#).is_err());
+    }
+}
+
 #[cfg(test)]
 mod test_nvidia_device_plugins {
     use super::*;
