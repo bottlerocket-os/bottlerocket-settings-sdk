@@ -61,7 +61,7 @@ bottlerocket-template-helper = { path = "./bottlerocket-template-helper", versio
 
 # Settings Models
 bottlerocket-model-derive = { path = "./bottlerocket-settings-models/model-derive", version = "0.1" }
-bottlerocket-modeled-types = { path = "./bottlerocket-settings-models/modeled-types", version = "0.19" }
+bottlerocket-modeled-types = { path = "./bottlerocket-settings-models/modeled-types", version = "0.20" }
 bottlerocket-scalar = { path = "./bottlerocket-settings-models/scalar", version = "0.1" }
 bottlerocket-scalar-derive = { path = "./bottlerocket-settings-models/scalar-derive", version = "0.1" }
 bottlerocket-string-impls-for = { path = "./bottlerocket-settings-models/string-impls-for", version = "0.1" }
