@@ -38,6 +38,7 @@ where
                 vec.push(RegistryMirrorV1 {
                     registry: Some(k),
                     endpoint: Some(v),
+                    capabilities: None,
                 });
             }
             Ok(Some(vec))
