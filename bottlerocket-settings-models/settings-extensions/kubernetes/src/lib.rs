@@ -48,6 +48,7 @@ pub struct KubernetesSettingsV1 {
     bootstrap_token: KubernetesBootstrapToken,
     standalone_mode: bool,
     eviction_hard: HashMap<KubernetesEvictionKey, KubernetesThresholdValue>,
+    merge_default_eviction_settings: bool,
     eviction_soft: HashMap<KubernetesEvictionKey, KubernetesThresholdValue>,
     eviction_soft_grace_period: HashMap<KubernetesEvictionKey, KubernetesDurationValue>,
     eviction_max_pod_grace_period: NonNegativeInteger,
@@ -159,6 +160,7 @@ mod test {
                 bootstrap_token: None,
                 standalone_mode: None,
                 eviction_hard: None,
+                merge_default_eviction_settings: None,
                 eviction_soft: None,
                 eviction_soft_grace_period: None,
                 eviction_max_pod_grace_period: None,
@@ -259,6 +261,47 @@ mod test {
             with.container_runtime_endpoint,
             Some("unix:///run/containerd/containerd.sock".try_into().unwrap())
         );
+    }
+
+    #[test]
+    fn test_merge_default_eviction_settings_is_optional() {
+        let settings: KubernetesSettingsV1 = serde_json::from_str("{}").unwrap();
+        assert_eq!(settings.merge_default_eviction_settings, None);
+        assert!(serde_json::to_value(settings)
+            .unwrap()
+            .get("merge-default-eviction-settings")
+            .is_none());
+    }
+
+    #[test]
+    fn test_merge_default_eviction_settings_round_trip() {
+        for enabled in [true, false] {
+            let input = serde_json::json!({
+                "merge-default-eviction-settings": enabled,
+                "eviction-hard": {"memory.available": "600Mi"},
+                "memory-swap-behavior": "LimitedSwap"
+            });
+            let settings: KubernetesSettingsV1 = serde_json::from_value(input.clone()).unwrap();
+            assert_eq!(settings.merge_default_eviction_settings, Some(enabled));
+            assert_eq!(
+                settings.memory_swap_behavior,
+                Some(KubernetesMemorySwapBehavior::LimitedSwap)
+            );
+            assert_eq!(serde_json::to_value(settings).unwrap(), input);
+        }
+    }
+
+    #[test]
+    fn test_merge_default_eviction_settings_rejects_non_boolean() {
+        for value in [
+            serde_json::json!("true"),
+            serde_json::json!(1),
+            serde_json::json!([]),
+            serde_json::json!({}),
+        ] {
+            let input = serde_json::json!({"merge-default-eviction-settings": value});
+            assert!(serde_json::from_value::<KubernetesSettingsV1>(input).is_err());
+        }
     }
 
     #[test]

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added `settings.kubernetes.merge-default-eviction-settings` to set kubelet's
+  `mergeDefaultEvictionSettings`, so `eviction-hard` signals that are not set
+  keep their defaults
+
 - See [unreleased changes here]
 
 [unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.31.0...HEAD
