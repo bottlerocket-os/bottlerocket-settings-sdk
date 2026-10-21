@@ -2,7 +2,7 @@
 //! kernel modules
 use bottlerocket_model_derive::model;
 use bottlerocket_modeled_types::{
-    DriversSettings, HugepagesSettings, KmodKey, Lockdown, SysctlKey,
+    DriversSettings, HugepagesSettings, KmodKey, Lockdown, SysctlKey, ZramSettings,
 };
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 use std::collections::HashMap;
@@ -16,6 +16,8 @@ struct KernelSettingsV1 {
     sysctl: HashMap<SysctlKey, String>,
     hugepages: HugepagesSettings,
     drivers: DriversSettings,
+    // Applied at boot on variants with release-swap; changes require a reboot.
+    zram: ZramSettings,
 }
 
 #[model]
@@ -109,6 +111,7 @@ mod test {
                 sysctl: None,
                 hugepages: None,
                 drivers: None,
+                zram: None,
             })
         )
     }
@@ -186,6 +189,7 @@ mod test {
                 sysctl,
                 hugepages,
                 drivers,
+                zram: None,
             }
         );
 
@@ -211,6 +215,30 @@ mod test {
             hugepages_out["transparent"]["defrag"],
             serde_json::json!("defer+madvise")
         );
+    }
+
+    #[test]
+    fn test_zram_setting() {
+        for size in ["0", "0%", "512Mi", "2Gi", "25%"] {
+            let value = serde_json::json!({"zram": {"size": size}});
+            let model: KernelSettingsV1 = serde_json::from_value(value.clone()).unwrap();
+            assert_eq!(serde_json::to_value(model).unwrap()["zram"], value["zram"]);
+        }
+        for value in [
+            serde_json::json!({"size": 25}),
+            serde_json::json!({"size": "101%"}),
+            serde_json::json!({"size": "-1Gi"}),
+            serde_json::json!({"size": "1Ti"}),
+            serde_json::json!({"size": "1048575"}),
+            serde_json::json!({"size": "1023Ki"}),
+            serde_json::json!({"typo": "1Gi"}),
+        ] {
+            assert!(
+                serde_json::from_value::<KernelSettingsV1>(serde_json::json!({"zram": value}))
+                    .is_err()
+            );
+        }
+        assert!(serde_json::from_str::<UKIKernelSettingsV1>(r#"{"zram":{"size":"1Gi"}}"#).is_err());
     }
 
     #[test]
