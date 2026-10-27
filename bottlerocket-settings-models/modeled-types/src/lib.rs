@@ -273,6 +273,7 @@ pub(crate) fn reject_control_chars(input: &str, kind: &'static str) -> Result<()
 mod drivers;
 mod ecs;
 mod hugepages;
+mod iec;
 mod kubernetes;
 mod oci_defaults;
 mod shared;
