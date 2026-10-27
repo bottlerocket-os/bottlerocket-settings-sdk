@@ -2,7 +2,7 @@
 use bottlerocket_model_derive::model;
 use bottlerocket_modeled_types::{
     ECSAgentImagePullBehavior, ECSAgentLogLevel, ECSAttributeKey, ECSAttributeValue,
-    ECSDurationValue, SingleLineString,
+    ECSDurationValue, ECSInstanceIPCompatibility, SingleLineString,
 };
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 use std::{collections::HashMap, convert::Infallible};
@@ -28,6 +28,7 @@ pub struct ECSSettingsV1 {
     backend_host: String,
     awsvpc_block_imds: bool,
     enable_container_metadata: bool,
+    instance_ip_compatibility: ECSInstanceIPCompatibility,
 }
 
 type Result<T> = std::result::Result<T, Infallible>;
@@ -89,6 +90,7 @@ mod test {
                 backend_host: None,
                 awsvpc_block_imds: None,
                 enable_container_metadata: None,
+                instance_ip_compatibility: None,
             }))
         )
     }
@@ -118,6 +120,7 @@ mod test {
             "backend-host": "ecs.us-east-1.amazonaws.com",
             "awsvpc-block-imds": true,
             "enable-container-metadata": true,
+            "instance-ip-compatibility": "ipv6",
         });
 
         let test_json_str = test_json.to_string();
@@ -158,6 +161,7 @@ mod test {
             backend_host: Some("ecs.us-east-1.amazonaws.com".to_string()),
             awsvpc_block_imds: Some(true),
             enable_container_metadata: Some(true),
+            instance_ip_compatibility: Some(ECSInstanceIPCompatibility::Ipv6),
         };
 
         assert_eq!(ecs_settings, expected_ecs_settings);
