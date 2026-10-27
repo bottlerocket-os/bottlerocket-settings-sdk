@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `settings.kubernetes.merge-default-eviction-settings` to set kubelet's
   `mergeDefaultEvictionSettings`, so `eviction-hard` signals that are not set
   keep their defaults
+- Added `settings.kernel.zram.size` to configure zram swap capacity using
+  integer bytes (`Ki`, `Mi`, `Gi`, `Ti`) or a percentage of total memory. Nonzero
+  absolute sizes must be at least 1 MiB.
 
 - See [unreleased changes here]
 
