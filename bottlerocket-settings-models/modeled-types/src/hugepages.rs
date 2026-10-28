@@ -1,4 +1,5 @@
 use crate::error;
+use crate::iec::parse_iec_quantity;
 use bottlerocket_scalar_derive::Scalar;
 use bottlerocket_string_impls_for::string_impls_for;
 use lazy_static::lazy_static;
@@ -69,12 +70,6 @@ impl TryFrom<&str> for HugepageAllocation {
 
 string_impls_for!(HugepageAllocation, "HugepageAllocation");
 
-lazy_static! {
-    // A positive integer followed by an IEC binary unit (Ki, Mi, Gi, Ti).
-    static ref HUGEPAGE_SIZE_RE: Regex =
-        Regex::new(r"^(?P<value>[1-9][0-9]*)(?P<unit>Ki|Mi|Gi|Ti)$").unwrap();
-}
-
 /// HugepageSize represents an explicit HugeTLB page size in IEC binary unit, e.g. `2Mi` or `1Gi`.
 /// We chose validated string instead of enum to accomodate arch specific allowed values.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -94,23 +89,9 @@ impl HugepageSize {
 
     /// Returns number of bytes if `input` is well-formed and does not overflow `u64`.
     fn parse(input: &str) -> Option<u64> {
-        if let Some(captured) = HUGEPAGE_SIZE_RE.captures(input) {
-            let Ok(value) = captured["value"].parse::<u64>() else {
-                return None;
-            };
-
-            let multiplier: u64 = match &captured["unit"] {
-                "Ki" => 1 << 10,
-                "Mi" => 1 << 20,
-                "Gi" => 1 << 30,
-                "Ti" => 1 << 40,
-                _ => return None,
-            };
-
-            return value.checked_mul(multiplier);
-        }
-
-        None
+        parse_iec_quantity(input)
+            .filter(|quantity| quantity.has_unit && quantity.bytes > 0)
+            .map(|quantity| quantity.bytes)
     }
 }
 
@@ -250,6 +231,7 @@ mod test_hugepage_size {
     #[test_case("-2Mi"; "negative")]
     #[test_case("2 Mi"; "whitespace")]
     #[test_case("2Pi"; "unsupported unit")]
+    #[test_case("02Mi"; "leading zero")]
     fn invalid(input: &str) {
         assert!(
             HugepageSize::try_from(input).is_err(),

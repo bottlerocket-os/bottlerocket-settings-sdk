@@ -67,6 +67,11 @@ pub mod error {
         #[snafu(display("Invalid version string '{}'", input))]
         InvalidVersion { input: String },
 
+        #[snafu(display(
+            "Invalid zram size '{input}': use zero, integer bytes (Ki/Mi/Gi/Ti) of at least 1Mi, or 0% to 100%"
+        ))]
+        InvalidZramSize { input: String },
+
         #[snafu(display("Invalid hugepages size '{}': '{}'", input, msg))]
         InvalidHugepageSize { input: String, msg: String },
 
@@ -273,9 +278,11 @@ pub(crate) fn reject_control_chars(input: &str, kind: &'static str) -> Result<()
 mod drivers;
 mod ecs;
 mod hugepages;
+mod iec;
 mod kubernetes;
 mod oci_defaults;
 mod shared;
+mod zram;
 
 pub use drivers::*;
 pub use ecs::*;
@@ -283,3 +290,4 @@ pub use hugepages::*;
 pub use kubernetes::*;
 pub use oci_defaults::*;
 pub use shared::*;
+pub use zram::*;
