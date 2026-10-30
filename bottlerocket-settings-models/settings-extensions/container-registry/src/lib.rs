@@ -7,12 +7,24 @@ use crate::de::deserialize_mirrors;
 use bottlerocket_model_derive::model;
 use bottlerocket_modeled_types::{SingleLineString, Url, ValidBase64};
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
+use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
+
+/// Operations a registry mirror endpoint can perform.
+/// Maps directly to containerd's hosts.toml capability values.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RegistryMirrorCapabilityV1 {
+    Pull,
+    Resolve,
+    Push,
+}
 
 #[model(impl_default = true)]
 struct RegistryMirrorV1 {
     registry: SingleLineString,
     endpoint: Vec<Url>,
+    capabilities: Vec<RegistryMirrorCapabilityV1>,
 }
 
 #[model(impl_default = true)]
@@ -125,5 +137,40 @@ mod test {
         assert!(credentials.first().unwrap().username.is_none());
         assert!(credentials.first().unwrap().password.is_none());
         assert!(credentials.first().unwrap().identitytoken.is_none());
+    }
+
+    #[test]
+    fn test_serde_mirror_with_capabilities() {
+        let test_json = r#"{
+            "mirrors": [
+                {
+                    "registry": "docker.io",
+                    "endpoint": ["https://example.net"],
+                    "capabilities": ["pull"]
+                }
+            ]
+        }"#;
+        let settings: RegistrySettingsV1 = serde_json::from_str(test_json).unwrap();
+        let mirrors = settings.mirrors.unwrap();
+        let caps = mirrors.first().unwrap().capabilities.clone().unwrap();
+        assert_eq!(caps, vec![RegistryMirrorCapabilityV1::Pull]);
+    }
+
+    #[test]
+    fn test_serde_mirror_without_capabilities_is_none() {
+        let test_json = r#"{"mirrors": [{"registry": "foo", "endpoint": ["https://example.net"]}]}"#;
+        let settings: RegistrySettingsV1 = serde_json::from_str(test_json).unwrap();
+        let mirrors = settings.mirrors.unwrap();
+        assert!(mirrors.first().unwrap().capabilities.is_none());
+    }
+
+    #[test]
+    fn test_serde_mirror_unknown_capability_rejected() {
+        let test_json = r#"{
+            "mirrors": [
+                {"registry": "foo", "endpoint": ["https://example.net"], "capabilities": ["fly"]}
+            ]
+        }"#;
+        assert!(serde_json::from_str::<RegistrySettingsV1>(test_json).is_err());
     }
 }
