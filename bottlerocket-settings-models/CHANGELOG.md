@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added `settings.kubernetes.kube-reserved-memory-min.kubelet` and `.containerd`
+  to set memory.min reclaim protection for those services using integer bytes
+  (`Ki`, `Mi`, `Gi`, `Ti`). Zero disables protection.
+
 - See [unreleased changes here]
 
 [unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.32.0...HEAD
