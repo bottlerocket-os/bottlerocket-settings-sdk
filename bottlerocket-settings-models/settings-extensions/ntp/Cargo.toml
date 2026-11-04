@@ -1,6 +1,6 @@
 [package]
 name = "settings-extension-ntp"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Sam Berning <bernings@amazon.com>"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
@@ -13,6 +13,10 @@ bottlerocket-settings-sdk.workspace = true
 env_logger.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+snafu.workspace = true
+
+[dev-dependencies]
+toml.workspace = true
 
 [lints]
 workspace = true
