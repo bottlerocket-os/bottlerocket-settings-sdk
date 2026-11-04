@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Removed
-
-- Reverted per-server NTP time source configuration ([#146])
-
 - See [unreleased changes here]
 
-[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.32.0...HEAD
+[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.33.0...HEAD
+
+## [0.33.0] - 2026-11-03
+
+### Removed
+
+- Reverted per-server NTP time source configuration ([#164])
+
+[#164]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/164
+
+[0.33.0]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.32.0...bottlerocket-settings-models-v0.33.0
 
 ## [0.32.0] - 2026-10-29
 
