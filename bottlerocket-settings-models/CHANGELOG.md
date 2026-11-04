@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added per-source NTP configuration as a list of server objects at
+  `settings.ntp.time-servers`, alongside the existing URL list ([#157])
+- Added `settings.ntp.logging` to select chrony log categories ([#157])
+
 - See [unreleased changes here]
+
+[#157]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/pull/157
 
 [unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.33.0...HEAD
 
