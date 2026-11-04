@@ -2,15 +2,16 @@
 use bottlerocket_model_derive::model;
 use bottlerocket_modeled_types::{
     CpuManagerPolicy, CredentialProvider, DNSDomain, Identifier, IntegerPercent, KernelCpuSetValue,
-    KubernetesAuthenticationMode, KubernetesBootstrapToken, KubernetesCPUManagerPolicyOption,
-    KubernetesCloudProvider, KubernetesClusterDnsIp, KubernetesClusterName,
-    KubernetesDurationValue, KubernetesEvictionKey, KubernetesHostnameOverrideSource,
-    KubernetesIdsPerPodValue, KubernetesLabelKey, KubernetesLabelValue,
-    KubernetesMemoryManagerPolicy, KubernetesMemoryReservation, KubernetesMemoryReservationPolicy,
-    KubernetesMemorySwapBehavior, KubernetesMemoryThrottlingFactor, KubernetesQuantityValue,
-    KubernetesReservedResourceKey, KubernetesTaintValue, KubernetesThresholdValue,
-    KubernetesTopologyManagerPolicyOptions, NonNegativeInteger, SingleLineString,
-    TopologyManagerPolicy, TopologyManagerScope, Url, ValidBase64, ValidLinuxHostname,
+    KubeReservedMemoryMinValue, KubernetesAuthenticationMode, KubernetesBootstrapToken,
+    KubernetesCPUManagerPolicyOption, KubernetesCloudProvider, KubernetesClusterDnsIp,
+    KubernetesClusterName, KubernetesDurationValue, KubernetesEvictionKey,
+    KubernetesHostnameOverrideSource, KubernetesIdsPerPodValue, KubernetesLabelKey,
+    KubernetesLabelValue, KubernetesMemoryManagerPolicy, KubernetesMemoryReservation,
+    KubernetesMemoryReservationPolicy, KubernetesMemorySwapBehavior,
+    KubernetesMemoryThrottlingFactor, KubernetesQuantityValue, KubernetesReservedResourceKey,
+    KubernetesTaintValue, KubernetesThresholdValue, KubernetesTopologyManagerPolicyOptions,
+    NonNegativeInteger, SingleLineString, TopologyManagerPolicy, TopologyManagerScope, Url,
+    ValidBase64, ValidLinuxHostname,
 };
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 
@@ -26,6 +27,12 @@ mod de;
 pub struct StaticPod {
     enabled: bool,
     manifest: ValidBase64,
+}
+
+#[model]
+pub struct KubeReservedMemoryMin {
+    kubelet: KubeReservedMemoryMinValue,
+    containerd: KubeReservedMemoryMinValue,
 }
 
 #[model(impl_default = true)]
@@ -53,6 +60,7 @@ pub struct KubernetesSettingsV1 {
     eviction_soft_grace_period: HashMap<KubernetesEvictionKey, KubernetesDurationValue>,
     eviction_max_pod_grace_period: NonNegativeInteger,
     kube_reserved: HashMap<KubernetesReservedResourceKey, KubernetesQuantityValue>,
+    kube_reserved_memory_min: KubeReservedMemoryMin,
     system_reserved: HashMap<KubernetesReservedResourceKey, KubernetesQuantityValue>,
     allowed_unsafe_sysctls: Vec<SingleLineString>,
     server_tls_bootstrap: bool,
@@ -165,6 +173,7 @@ mod test {
                 eviction_soft_grace_period: None,
                 eviction_max_pod_grace_period: None,
                 kube_reserved: None,
+                kube_reserved_memory_min: None,
                 system_reserved: None,
                 allowed_unsafe_sysctls: None,
                 server_tls_bootstrap: None,
@@ -241,6 +250,52 @@ mod test {
                 ..Default::default()
             }
         );
+    }
+
+    #[test]
+    fn kube_reserved_memory_min_is_optional() {
+        let settings: KubernetesSettingsV1 = serde_json::from_str("{}").unwrap();
+        assert!(settings.kube_reserved_memory_min.is_none());
+        assert!(serde_json::to_value(settings)
+            .unwrap()
+            .get("kube-reserved-memory-min")
+            .is_none());
+    }
+
+    #[test]
+    fn kube_reserved_memory_min_round_trips_quantities() {
+        for quantities in [
+            serde_json::json!({"kubelet": "128Mi", "containerd": "128Mi"}),
+            serde_json::json!({"kubelet": "200Mi", "containerd": "300Mi"}),
+            serde_json::json!({"containerd": "0"}),
+            serde_json::json!({"kubelet": "1Gi", "containerd": "129000000"}),
+            serde_json::json!({"kubelet": "1Ti", "containerd": "0Mi"}),
+            serde_json::json!({"kubelet": "18446744073709551614", "containerd": "18446744073709551614"}),
+        ] {
+            let input = serde_json::json!({"kube-reserved-memory-min": quantities});
+            let settings: KubernetesSettingsV1 = serde_json::from_value(input.clone()).unwrap();
+            assert_eq!(
+                serde_json::to_value(settings).unwrap()["kube-reserved-memory-min"],
+                input["kube-reserved-memory-min"],
+                "{quantities}"
+            );
+        }
+    }
+
+    #[test]
+    fn kube_reserved_memory_min_rejects_invalid_quantity_types() {
+        for value in [
+            serde_json::json!("-1Mi"),
+            serde_json::json!("10%"),
+            serde_json::json!(128),
+            serde_json::json!(true),
+        ] {
+            let input = serde_json::json!({"kube-reserved-memory-min": {"kubelet": value}});
+            assert!(
+                serde_json::from_value::<KubernetesSettingsV1>(input).is_err(),
+                "{value}"
+            );
+        }
     }
 
     #[test]

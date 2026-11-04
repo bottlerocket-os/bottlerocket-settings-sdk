@@ -76,6 +76,12 @@ pub mod error {
         InvalidHugepageSize { input: String, msg: String },
 
         #[snafu(display(
+            "Invalid memory.min value '{input}': use integer bytes with an optional Ki, Mi, Gi or Ti unit, at most {}",
+            crate::KubeReservedMemoryMinValue::MAX_BYTES
+        ))]
+        InvalidKubeReservedMemoryMin { input: String },
+
+        #[snafu(display(
             "Invalid hugepages allocation '{}'. Must be either a non-negative \
             integer or a comma separated list of \"<node>:<pages>\" pairs (e.g. \"0:128,1:256\")",
             input
@@ -280,6 +286,7 @@ mod ecs;
 mod hugepages;
 mod iec;
 mod kubernetes;
+mod memory_min;
 mod oci_defaults;
 mod shared;
 mod zram;
@@ -288,6 +295,7 @@ pub use drivers::*;
 pub use ecs::*;
 pub use hugepages::*;
 pub use kubernetes::*;
+pub use memory_min::*;
 pub use oci_defaults::*;
 pub use shared::*;
 pub use zram::*;
