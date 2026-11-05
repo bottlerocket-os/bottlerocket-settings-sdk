@@ -19,6 +19,7 @@ pub struct ContainerRuntimeSettingsV1 {
     concurrent_download_chunk_size: i64,
     enable_unprivileged_ports: bool,
     enable_unprivileged_icmp: bool,
+    cgroup_writable: bool,
     snapshotter: Snapshotter,
 }
 
@@ -76,6 +77,7 @@ mod test {
                 concurrent_download_chunk_size: None,
                 enable_unprivileged_ports: None,
                 enable_unprivileged_icmp: None,
+                cgroup_writable: None,
                 snapshotter: None,
             }))
         )
@@ -90,6 +92,7 @@ mod test {
             "concurrent-download-chunk-size": "64mb",
             "enable-unprivileged-ports": true,
             "enable-unprivileged-icmp": false,
+            "cgroup-writable": true,
             "snapshotter": "soci",
         });
 
@@ -107,6 +110,7 @@ mod test {
                 concurrent_download_chunk_size: Some(64000000), // 64mb in bytes
                 enable_unprivileged_ports: Some(true),
                 enable_unprivileged_icmp: Some(false),
+                cgroup_writable: Some(true),
                 snapshotter: Some(Snapshotter::Soci),
             }
         );
@@ -122,6 +126,7 @@ mod test {
             "concurrent-download-chunk-size": 64000000, // Serialized as number
             "enable-unprivileged-ports": true,
             "enable-unprivileged-icmp": false,
+            "cgroup-writable": true,
             "snapshotter": "soci",
         });
 
@@ -137,6 +142,7 @@ mod test {
             "concurrent-layer-fetch-buffer": "128mb",
             "enable-unprivileged-ports": false,
             "enable-unprivileged-icmp": true,
+            "cgroup-writable": false,
             "snapshotter": "overlayfs",
         });
 
@@ -152,6 +158,7 @@ mod test {
                 concurrent_download_chunk_size: Some(128000000), // 128mb in bytes
                 enable_unprivileged_ports: Some(false),
                 enable_unprivileged_icmp: Some(true),
+                cgroup_writable: Some(false),
                 snapshotter: Some(Snapshotter::Overlayfs),
             }
         );
