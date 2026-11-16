@@ -245,6 +245,36 @@ mod test_ecs_agent_image_pull_behavior {
     }
 }
 
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
+/// ECSInstanceIPCompatibility represents the IP family the ECS agent registers with.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Scalar)]
+#[serde(rename_all = "lowercase")]
+pub enum ECSInstanceIPCompatibility {
+    Ipv4,
+    Ipv6,
+}
+
+#[cfg(test)]
+mod test_ecs_instance_ip_compatibility {
+    use super::ECSInstanceIPCompatibility;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn good_vals() {
+        for val in &["ipv4", "ipv6"] {
+            ECSInstanceIPCompatibility::try_from(*val).unwrap();
+        }
+    }
+
+    #[test]
+    fn bad_vals() {
+        for val in &["", "IPv6", "dual", " "] {
+            ECSInstanceIPCompatibility::try_from(*val).unwrap_err();
+        }
+    }
+}
+
 /// ECSDurationValue represents a string that contains a valid ECS duration value
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ECSDurationValue {
