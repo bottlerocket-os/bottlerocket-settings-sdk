@@ -54,6 +54,11 @@ pub struct KubernetesSettingsV1 {
     eviction_max_pod_grace_period: NonNegativeInteger,
     kube_reserved: HashMap<KubernetesReservedResourceKey, KubernetesQuantityValue>,
     system_reserved: HashMap<KubernetesReservedResourceKey, KubernetesQuantityValue>,
+    // The two terms of the default kube-reserved memory formula,
+    // `max-pods * kube-reserved-memory-per-pod-mib + kube-reserved-memory-base-mib` MiB, used when
+    // `kube-reserved.memory` is not set. Unset: 11 and 255, the EKS AMI values.
+    kube_reserved_memory_base_mib: u32,
+    kube_reserved_memory_per_pod_mib: u32,
     allowed_unsafe_sysctls: Vec<SingleLineString>,
     server_tls_bootstrap: bool,
     cloud_provider: KubernetesCloudProvider,
@@ -166,6 +171,8 @@ mod test {
                 eviction_max_pod_grace_period: None,
                 kube_reserved: None,
                 system_reserved: None,
+                kube_reserved_memory_base_mib: None,
+                kube_reserved_memory_per_pod_mib: None,
                 allowed_unsafe_sysctls: None,
                 server_tls_bootstrap: None,
                 cloud_provider: None,
@@ -349,6 +356,38 @@ mod test {
             r#"{"memory-throttling-factor": 0}"#,
             r#"{"memory-throttling-factor": 1.1}"#,
             r#"{"memory-throttling-factor": "0.8"}"#,
+        ] {
+            assert!(serde_json::from_str::<KubernetesSettingsV1>(invalid).is_err());
+        }
+    }
+    #[test]
+    fn test_serde_kube_reserved_memory_terms() {
+        let settings: KubernetesSettingsV1 = serde_json::from_str(
+            r#"{"kube-reserved-memory-base-mib": 512, "kube-reserved-memory-per-pod-mib": 8}"#,
+        )
+        .unwrap();
+        assert_eq!(settings.kube_reserved_memory_base_mib, Some(512));
+        assert_eq!(settings.kube_reserved_memory_per_pod_mib, Some(8));
+
+        let serialized = serde_json::to_value(settings).unwrap();
+        assert_eq!(
+            serialized
+                .get("kube-reserved-memory-base-mib")
+                .and_then(serde_json::Value::as_u64),
+            Some(512)
+        );
+
+        let unset: KubernetesSettingsV1 = serde_json::from_str("{}").unwrap();
+        assert_eq!(unset.kube_reserved_memory_base_mib, None);
+        assert_eq!(unset.kube_reserved_memory_per_pod_mib, None);
+    }
+
+    #[test]
+    fn test_serde_kube_reserved_memory_terms_reject_invalid_values() {
+        for invalid in [
+            r#"{"kube-reserved-memory-base-mib": -1}"#,
+            r#"{"kube-reserved-memory-per-pod-mib": "11Mi"}"#,
+            r#"{"kube-reserved-memory-per-pod-mib": 1.5}"#,
         ] {
             assert!(serde_json::from_str::<KubernetesSettingsV1>(invalid).is_err());
         }
