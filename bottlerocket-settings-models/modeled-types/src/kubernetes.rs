@@ -1714,6 +1714,171 @@ pub struct NvidiaDevicePluginSettings {
     mps: NvidiaMpsSettings,
     device_partitioning_strategy: NvidiaDevicePartitioningStrategy,
     mig: NvidiaMigSettings,
+    disable_health_checks: NvidiaDisableHealthChecks,
+}
+
+/// NvidiaDisableHealthChecks is the value of the device plugin's `DP_DISABLE_HEALTHCHECKS`
+/// environment variable: either `all`, or a comma-separated list of Xids (e.g. `94` or `94,119`).
+/// Used to ignore specific XID events from marking GPUs unhealthy.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct NvidiaDisableHealthChecks {
+    inner: String,
+}
+
+impl NvidiaDisableHealthChecks {
+    pub const ALL: &'static str = "all";
+}
+
+impl TryFrom<&str> for NvidiaDisableHealthChecks {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        crate::reject_control_chars(input, "NvidiaDisableHealthChecks")?;
+
+        if input == Self::ALL {
+            return Ok(NvidiaDisableHealthChecks {
+                inner: input.to_string(),
+            });
+        }
+
+        let invalid =
+            |msg: String| error::InvalidNvidiaDisableHealthChecksSnafu { input, msg }.build();
+
+        if input.is_empty() {
+            return Err(invalid("value is empty".to_string()));
+        }
+
+        let mut seen = std::collections::HashSet::new();
+        for xid in input.split(',') {
+            if xid.is_empty() || !xid.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(invalid(format!("'{xid}' is not a positive integer")));
+            }
+            if xid.starts_with('0') {
+                return Err(invalid(format!(
+                    "'{xid}' must be a positive integer without leading zeros"
+                )));
+            }
+            let id: u32 = xid
+                .parse()
+                .map_err(|_| invalid(format!("'{xid}' is out of range")))?;
+            if !seen.insert(id) {
+                return Err(invalid(format!("Xid '{xid}' is listed more than once")));
+            }
+        }
+
+        Ok(NvidiaDisableHealthChecks {
+            inner: input.to_string(),
+        })
+    }
+}
+
+impl TryFrom<String> for NvidiaDisableHealthChecks {
+    type Error = error::Error;
+
+    fn try_from(input: String) -> Result<Self, Self::Error> {
+        Self::try_from(input.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for NvidiaDisableHealthChecks {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct DisableHealthChecksVisitor;
+
+        impl serde::de::Visitor<'_> for DisableHealthChecksVisitor {
+            type Value = NvidiaDisableHealthChecks;
+
+            fn expecting(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                f.write_str(r#""all", a comma-separated string of Xids, or a single Xid number"#)
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                NvidiaDisableHealthChecks::try_from(v).map_err(|e| {
+                    E::custom(format!(
+                        "Unable to deserialize into NvidiaDisableHealthChecks: {e}"
+                    ))
+                })
+            }
+
+            fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+
+            // TOML and some other formats report every integer as i64.
+            fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Self::Value, E> {
+                self.visit_str(&v.to_string())
+            }
+        }
+
+        deserializer.deserialize_any(DisableHealthChecksVisitor)
+    }
+}
+
+impl Serialize for NvidiaDisableHealthChecks {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.inner)
+    }
+}
+
+impl std::ops::Deref for NvidiaDisableHealthChecks {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::borrow::Borrow<String> for NvidiaDisableHealthChecks {
+    fn borrow(&self) -> &String {
+        &self.inner
+    }
+}
+
+impl std::borrow::Borrow<str> for NvidiaDisableHealthChecks {
+    fn borrow(&self) -> &str {
+        &self.inner
+    }
+}
+
+impl AsRef<str> for NvidiaDisableHealthChecks {
+    fn as_ref(&self) -> &str {
+        &self.inner
+    }
+}
+
+impl Display for NvidiaDisableHealthChecks {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.inner)
+    }
+}
+
+impl From<NvidiaDisableHealthChecks> for String {
+    fn from(x: NvidiaDisableHealthChecks) -> Self {
+        x.inner
+    }
+}
+
+impl PartialEq<str> for NvidiaDisableHealthChecks {
+    fn eq(&self, other: &str) -> bool {
+        self.inner == other
+    }
+}
+
+impl PartialEq<String> for NvidiaDisableHealthChecks {
+    fn eq(&self, other: &String) -> bool {
+        &self.inner == other
+    }
+}
+
+impl PartialEq<&str> for NvidiaDisableHealthChecks {
+    fn eq(&self, other: &&str) -> bool {
+        self.inner == *other
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -1924,6 +2089,156 @@ mod test_nvidia_device_plugins {
     }
 
     #[test]
+    fn valid_disable_health_checks() {
+        for ok in &["all", "94", "94,119", "13,31,43,45,68,109", "4294967295"] {
+            let value = NvidiaDisableHealthChecks::try_from(*ok).unwrap();
+            assert_eq!(value.as_ref(), *ok);
+        }
+    }
+
+    #[test]
+    fn invalid_disable_health_checks() {
+        for err in &[
+            "",
+            "0",          // Xid 0 means "all Xids" inside the plugin
+            "94,0",       // same, hidden in a list
+            "094",        // leading zero
+            "94,",        // trailing empty entry
+            ",94",        // leading empty entry
+            "94,,95",     // empty entry in the middle
+            "94, 95",     // whitespace
+            " 94",        // whitespace
+            "94,94",      // duplicate
+            "-94",        // negative
+            "+94",        // sign
+            "94.0",       // not an integer
+            "0x5e",       // not decimal
+            "4294967296", // u32 overflow
+            "ALL",        // keyword is lowercase only
+            "xids",       // upstream alias for "all"; only "all" is accepted
+            "all,94",     // keyword can't be combined with Xids
+            "94,all",
+            "none",
+            "94;rm -rf /",
+            "94\n95",
+            "94\"",
+        ] {
+            assert!(
+                NvidiaDisableHealthChecks::try_from(*err).is_err(),
+                "{err:?} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn nvidia_device_plugin_disable_health_checks_absent() {
+        let settings: NvidiaDevicePluginSettings = serde_json::from_str(r#"{}"#).unwrap();
+        assert_eq!(settings.disable_health_checks, None);
+    }
+
+    #[test]
+    fn test_serde_nvidia_device_plugins_with_disable_health_checks() {
+        for value in &["94", "94,119", "all"] {
+            let test_json = format!(r#"{{"enabled":true,"disable-health-checks":"{value}"}}"#);
+            let settings: NvidiaDevicePluginSettings = serde_json::from_str(&test_json).unwrap();
+            assert_eq!(
+                settings,
+                NvidiaDevicePluginSettings {
+                    enabled: Some(true),
+                    disable_health_checks: Some(
+                        NvidiaDisableHealthChecks::try_from(*value).unwrap()
+                    ),
+                    ..NvidiaDevicePluginSettings::default()
+                }
+            );
+            assert_eq!(serde_json::to_string(&settings).unwrap(), test_json);
+        }
+    }
+
+    #[test]
+    fn test_serde_nvidia_device_plugins_rejects_bad_disable_health_checks() {
+        for json in &[
+            r#"{"disable-health-checks":"0"}"#,
+            r#"{"disable-health-checks":"94, 95"}"#,
+            r#"{"disable-health-checks":"garbage"}"#,
+            r#"{"disable-health-checks":0}"#,
+            // A list is not accepted; use the comma-separated string form.
+            r#"{"disable-health-checks":[94]}"#,
+        ] {
+            let result: Result<NvidiaDevicePluginSettings, _> = serde_json::from_str(json);
+            assert!(result.is_err(), "{json} should be rejected");
+        }
+    }
+
+    #[test]
+    fn disable_health_checks_accepts_whole_number() {
+        for (json, expected) in &[("94", "94"), ("119", "119"), ("4294967295", "4294967295")] {
+            let value: NvidiaDisableHealthChecks = serde_json::from_str(json).unwrap();
+            assert_eq!(value.as_ref(), *expected);
+            // Always stored as a string, whichever form was given.
+            assert_eq!(
+                serde_json::to_string(&value).unwrap(),
+                format!("\"{expected}\"")
+            );
+        }
+    }
+
+    #[test]
+    fn disable_health_checks_accepts_i64_number() {
+        // TOML and some other formats report every integer as i64.
+        use serde::de::IntoDeserializer;
+        let deserializer: serde::de::value::I64Deserializer<serde::de::value::Error> =
+            94i64.into_deserializer();
+        let value = NvidiaDisableHealthChecks::deserialize(deserializer).unwrap();
+        assert_eq!(value.as_ref(), "94");
+
+        let deserializer: serde::de::value::I64Deserializer<serde::de::value::Error> =
+            (-94i64).into_deserializer();
+        assert!(NvidiaDisableHealthChecks::deserialize(deserializer).is_err());
+    }
+
+    #[test]
+    fn disable_health_checks_rejects_bad_numbers() {
+        for json in &["0", "-94", "94.5", "94.0", "1e2", "4294967296"] {
+            assert!(
+                serde_json::from_str::<NvidiaDisableHealthChecks>(json).is_err(),
+                "{json} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn disable_health_checks_rejects_other_types() {
+        for json in &[
+            "true",
+            "false",
+            "null",
+            "[94]",
+            r#"["94"]"#,
+            r#"{"xid":94}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<NvidiaDisableHealthChecks>(json).is_err(),
+                "{json} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn test_serde_nvidia_device_plugins_with_numeric_disable_health_checks() {
+        let settings: NvidiaDevicePluginSettings =
+            serde_json::from_str(r#"{"enabled":true,"disable-health-checks":94}"#).unwrap();
+        assert_eq!(
+            settings.disable_health_checks,
+            Some(NvidiaDisableHealthChecks::try_from("94").unwrap())
+        );
+        assert_eq!(
+            serde_json::to_string(&settings).unwrap(),
+            r#"{"enabled":true,"disable-health-checks":"94"}"#
+        );
+    }
+
+    #[test]
     fn valid_gpu_model() {
         for ok in &[
             "a100.40gb",
@@ -1985,7 +2300,8 @@ mod test_nvidia_device_plugins {
                 time_slicing: None,
                 mps: None,
                 device_partitioning_strategy: None,
-                mig: None
+                mig: None,
+                disable_health_checks: None,
             }
         );
         let results = serde_json::to_string(&nvidia_device_plugins).unwrap();
@@ -2010,7 +2326,8 @@ mod test_nvidia_device_plugins {
                 time_slicing: None,
                 mps: None,
                 device_partitioning_strategy: None,
-                mig: None
+                mig: None,
+                disable_health_checks: None,
             }
         );
 
@@ -2043,7 +2360,8 @@ mod test_nvidia_device_plugins {
                 time_slicing: None,
                 mps: None,
                 device_partitioning_strategy: Some(NvidiaDevicePartitioningStrategy::MIG),
-                mig: None
+                mig: None,
+                disable_health_checks: None,
             }
         );
 
@@ -2075,6 +2393,7 @@ mod test_nvidia_device_plugins {
                         MigProfile::try_from("1g.5gb").unwrap()
                     )]))
                 }),
+                disable_health_checks: None,
             }
         );
 
