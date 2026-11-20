@@ -196,6 +196,13 @@ pub mod error {
             input
         ))]
         InvalidMaxAllowableNumaNodesValue { input: u32 },
+        #[snafu(display(
+            "Invalid NVIDIA device plugin disable-health-checks value '{}': {}. Must be \"all\" \
+            or a comma-separated list of Xid numbers (e.g. \"94\" or \"94,119\")",
+            input,
+            msg
+        ))]
+        InvalidNvidiaDisableHealthChecks { input: String, msg: String },
     }
 
     /// Creates a `ValidationError` with a consistent message for strings with regex validations
